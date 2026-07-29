@@ -3,9 +3,10 @@
 Janet is a local knowledge agent for building and maintaining portable project wikis in plain
 Markdown using the Open Knowledge Format (OKF).
 
-She operates on the current directory: run Janet in a project and its bundle lives at
-`knowledge/`, while conversation history stays scoped to that project. The knowledge remains open,
-diffable, and usable without Janet.
+She operates on a selected project directory—the current directory by default, or the directory
+given with `-C`. Its knowledge bundle defaults to `knowledge/`, but `--bundle <path>` can select
+another directory inside that project. Conversation history stays scoped to the project. The
+knowledge remains open, diffable, and usable without Janet.
 
 > Janet is prerelease software. The current npm release is `0.1.0-beta.1` under the `next` tag.
 
@@ -47,7 +48,14 @@ janet lint                       # deterministic conformance + semantic drift au
 janet viz                        # write an interactive graph
 ```
 
-Use `-C <directory>` to select a project and `--bundle <path>` to select a bundle inside it.
+Use `-C <directory>` to select a project and `--bundle <path>` to select a bundle inside it. The
+bundle path may be relative to the selected project or an absolute path within it:
+
+```bash
+janet --bundle docs/project-kb init
+janet -C /path/to/project --bundle docs/project-kb query "what do we know?"
+```
+
 Janet rejects bundle paths outside the selected project.
 
 Add `-p` (or pipe/redirect output) for headless one-shot mode. Headless query and ordinary lint
