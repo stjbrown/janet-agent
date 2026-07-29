@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const artifactsDir = join(repoRoot, "artifacts");
-const janetDir = join(repoRoot, "packages", "janet");
 const npmCacheDir = join(tmpdir(), "agent-knowledge-npm-cache");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
@@ -16,7 +15,7 @@ mkdirSync(npmCacheDir, { recursive: true });
 const result = spawnSync(
   npmCommand,
   ["pack", "--pack-destination", artifactsDir, "--cache", npmCacheDir],
-  { cwd: janetDir, stdio: "inherit" },
+  { cwd: repoRoot, stdio: "inherit" },
 );
 
 if (result.error) throw result.error;
