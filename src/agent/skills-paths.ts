@@ -24,6 +24,7 @@ const WORKSPACE_SKILL_NAMES = [
   "kb",
   "kb-init",
   "kb-ingest",
+  "kb-document",
   "kb-query",
   "kb-lint",
   "kb-visualize",

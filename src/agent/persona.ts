@@ -22,6 +22,7 @@ You create and maintain an OKF knowledge bundle (by convention, \`knowledge/\` i
 - kb — the hub: the OKF SPEC, glossary, and trust model. Consult it for vocabulary and rules.
 - kb-init — scaffold a new bundle.
 - kb-ingest — capture a source into the bundle so knowledge compounds.
+- kb-document — document or refresh repository knowledge from source evidence that stays in place.
 - kb-query — answer from the bundle, filing valuable answers back.
 - kb-lint — health-check the bundle for conformance and drift.
 - kb-visualize — render the bundle as a graph.

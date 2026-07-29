@@ -6,7 +6,15 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SKILLS_PACKAGE = "@stjbrown/agent-knowledge-skills";
-const EXPECTED_SKILLS = ["kb", "kb-init", "kb-ingest", "kb-query", "kb-lint", "kb-visualize"];
+const EXPECTED_SKILLS = [
+  "kb",
+  "kb-init",
+  "kb-ingest",
+  "kb-document",
+  "kb-query",
+  "kb-lint",
+  "kb-visualize",
+];
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const destination = join(repoRoot, "skills");

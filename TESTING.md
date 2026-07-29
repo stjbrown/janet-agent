@@ -17,7 +17,8 @@ Record the source revision and tarball checksum:
 
 ```bash
 git rev-parse HEAD
-shasum -a 256 artifacts/janet-agent-0.1.0-beta.1.tgz
+JANET_VERSION="$(node -p 'require("./package.json").version')"
+shasum -a 256 "artifacts/janet-agent-$JANET_VERSION.tgz"
 git status --short
 ```
 
@@ -26,9 +27,9 @@ outputs.
 
 Before publishing, verify the tarball:
 
-- contains `dist/`, all six `skills/`, `README.md`, `OBSERVABILITY.md`, `LICENSE`, and `NOTICE`
+- contains `dist/`, all seven `skills/`, `README.md`, `OBSERVABILITY.md`, `LICENSE`, and `NOTICE`
 - contains both `janet` and `ding` binaries pointing to `dist/main.js`
-- reports `0.1.0-beta.1`
+- reports the version in `package.json`
 - contains no `src/`, `test/`, monorepo path, `workspace:*`, or local `file:` dependency
 - clean-installs without the Agent Knowledge source repository
 
@@ -37,11 +38,12 @@ Before publishing, verify the tarball:
 Use a temporary npm cache to avoid relying on machine-global npm state:
 
 ```bash
+JANET_VERSION="$(node -p 'require("./package.json").version')"
 JANET_INSTALL_DIR="$(mktemp -d /tmp/janet-install.XXXXXX)"
 npm install \
   --cache "$JANET_INSTALL_DIR/npm-cache" \
   --prefix "$JANET_INSTALL_DIR" \
-  /path/to/janet-agent-0.1.0-beta.1.tgz
+  "/path/to/janet-agent-$JANET_VERSION.tgz"
 
 "$JANET_INSTALL_DIR/node_modules/.bin/janet" --version
 "$JANET_INSTALL_DIR/node_modules/.bin/ding" --help
@@ -62,6 +64,10 @@ Do not use `sudo npm install`.
 - [ ] Complete OpenAI browser OAuth in one environment and device OAuth in another.
 - [ ] Confirm OAuth and model selection persist after restart.
 - [ ] Complete init, ingest, cited query, lint, and visualize.
+- [ ] Document a repository and confirm source, tests, configuration, and existing docs stay
+  untouched while only the selected bundle changes.
+- [ ] Refresh after a small source change, then confirm an unrelated change produces no knowledge
+  edit.
 - [ ] Confirm ordinary skill loading, reads, and workspace edits do not show approval gates.
 - [ ] Confirm shell execution still requires approval and headless mode fails closed.
 - [ ] Confirm Esc, Ctrl+C, and `/cancel` stop an active run without exiting Janet.
