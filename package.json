@@ -26,8 +26,8 @@
   },
   "type": "module",
   "bin": {
-    "janet": "./dist/main.js",
-    "ding": "./dist/main.js"
+    "janet": "dist/main.js",
+    "ding": "dist/main.js"
   },
   "files": [
     "dist",
