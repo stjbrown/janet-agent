@@ -98,17 +98,16 @@ export function appDataDir(): string {
 }
 
 /**
- * Absolute path to the skills folder shipped inside this package (the external,
- * always-present fallback copy). Resolved relative to this module so it works
- * from `dist/` after bundling. In dev (src/) it points at the repo-root skills.
+ * Absolute path to the synchronized skills shipped inside this package.
+ * Resolved relative to this module in both the source and bundled layouts.
  */
 export function bundledSkillsDir(): string {
   const here = dirname(fileURLToPath(import.meta.url));
-  // Dev layout: packages/janet/src/agent/paths.ts → repo-root/skills. Check
-  // for an actual portable skill because packages/janet/src/skills contains
-  // Janet-owned inline skill definitions and is not a filesystem skill root.
-  const repoSkills = resolve(here, "..", "..", "..", "..", "skills");
+  // Built layout: dist/main.js → ../skills.
+  const packageSkills = resolve(here, "..", "skills");
+  if (existsSync(join(packageSkills, "kb", "SKILL.md"))) return packageSkills;
+  // Development layout: src/agent/paths.ts → ../../skills.
+  const repoSkills = resolve(here, "..", "..", "skills");
   if (existsSync(join(repoSkills, "kb", "SKILL.md"))) return repoSkills;
-  // Built layout: packages/janet/dist/main.js → ../skills.
-  return resolve(here, "..", "skills");
+  return packageSkills;
 }

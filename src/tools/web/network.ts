@@ -285,7 +285,7 @@ export async function fetchPublicWebUrl(
           accept:
             "text/html, application/xhtml+xml, text/markdown, text/plain, application/json, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.1",
           "accept-encoding": "gzip, br, deflate",
-          "user-agent": "JanetWebFetch/1.0 (+https://github.com/stjbrown/agent-knowledge)",
+          "user-agent": "JanetWebFetch/1.0 (+https://github.com/stjbrown/janet-agent)",
         },
       });
 

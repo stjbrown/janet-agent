@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const artifactsDir = join(repoRoot, "artifacts");
-const npmCacheDir = join(tmpdir(), "agent-knowledge-npm-cache");
+const npmCacheDir = join(tmpdir(), "janet-agent-npm-cache");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
 mkdirSync(artifactsDir, { recursive: true });

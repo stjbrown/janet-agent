@@ -1,5 +1,4 @@
 import { existsSync } from "node:fs";
-import { checkConformance, formatReport } from "@agent-knowledge/kb-tools";
 import { loadSettings } from "./onboarding/settings.js";
 import { availableModels, normalizeModelSelection } from "./onboarding/providers.js";
 import { parseArgs } from "./headless/flags.js";
@@ -13,6 +12,7 @@ import {
 import { resolveProjectPaths } from "./agent/paths.js";
 import { GREETING } from "./agent/persona.js";
 import { packageVersion } from "./version.js";
+import { formatConformanceReport, runConformanceCheck } from "./conformance.js";
 
 const HELP = `${GREETING}
 
@@ -82,7 +82,7 @@ async function main(argv: string[]): Promise<number> {
     return 2;
   }
 
-  // `lint` runs the deterministic conformance check in-process first (no tokens,
+  // `lint` runs the deterministic conformance script first (no tokens,
   // CI-gateable), then hands the drift audit to the agent.
   let conformanceErrors = 0;
   if (sub === "lint") {
@@ -92,9 +92,14 @@ async function main(argv: string[]): Promise<number> {
       );
       return 2;
     }
-    const report = checkConformance(paths.bundlePath);
+    const result = runConformanceCheck(paths.bundlePath);
+    if (result.exitCode === 2) {
+      process.stderr.write(`Deterministic conformance check failed: ${result.error}\n`);
+      return 2;
+    }
+    const report = result.report;
     conformanceErrors = report.errors.length;
-    process.stdout.write(formatReport(report) + "\n");
+    process.stdout.write(formatConformanceReport(report) + "\n");
     // If no model is configured, stop after the deterministic pass (still useful
     // and exit-coded for CI).
     if (!modelId) {

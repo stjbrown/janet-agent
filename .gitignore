@@ -30,12 +30,8 @@ _ingest_plan.md
 # firecrawl scrape scratch (fetched docs / working cache)
 .firecrawl/
 
-# prepack copy of repo-root skills/ into the publishable package (build artifact)
-packages/janet/skills/
-packages/janet/README.md
-packages/janet/OBSERVABILITY.md
-packages/janet/LICENSE
-packages/janet/NOTICE
+# synchronized copy from @stjbrown/agent-knowledge-skills (build artifact)
+skills/
 
 # janet project-local config (thread scope, skill symlinks)
 .agent-knowledge/

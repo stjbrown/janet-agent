@@ -138,8 +138,7 @@ Phoenix-compatible protobuf request, `/v1/traces`, and `x-project-name`:
 
 ```bash
 JANET_OTLP_INTEGRATION=1 \
-corepack pnpm --filter @stjbrown/agent-knowledge \
-  exec vitest run test/observability-runtime.test.ts
+corepack pnpm exec vitest run test/observability-runtime.test.ts
 ```
 
 The release test plan in [`TESTING.md`](./TESTING.md) adds a real TUI, Phoenix UI, and clean-install
