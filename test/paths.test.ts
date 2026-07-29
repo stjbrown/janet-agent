@@ -11,12 +11,25 @@ afterEach(() => {
 });
 
 describe("resolveProjectPaths", () => {
+  it("defaults to the knowledge directory in the selected project", () => {
+    const project = mkdtempSync(join(tmpdir(), "janet-paths-default-"));
+    roots.push(project);
+    expect(resolveProjectPaths({ dir: project }).bundlePath).toBe(join(project, "knowledge"));
+  });
+
   it("resolves a bundle within the selected project", () => {
     const project = mkdtempSync(join(tmpdir(), "janet-paths-"));
     roots.push(project);
     expect(resolveProjectPaths({ dir: project, bundle: "docs/kb" }).bundlePath).toBe(
       join(project, "docs", "kb"),
     );
+  });
+
+  it("accepts an absolute bundle path within the selected project", () => {
+    const project = mkdtempSync(join(tmpdir(), "janet-paths-absolute-"));
+    roots.push(project);
+    const bundle = join(project, "docs", "kb");
+    expect(resolveProjectPaths({ dir: project, bundle }).bundlePath).toBe(bundle);
   });
 
   it("rejects a bundle outside the project sandbox", () => {
