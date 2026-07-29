@@ -28,6 +28,13 @@ The package provides both `janet` and `ding` because you summon Janet with a din
 
 Node.js 22.13 or newer is required.
 
+### Migrating from the former package
+
+Janet was previously published as `@stjbrown/agent-knowledge`. That legacy package has been
+withdrawn; replace it with `janet-agent@next`. The
+[Agent Knowledge](https://github.com/stjbrown/agent-knowledge) repository now owns only the
+portable skills.
+
 ## Use
 
 First run walks you through choosing a model from the providers you have configured.
