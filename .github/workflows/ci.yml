@@ -27,12 +27,13 @@ jobs:
 
       - name: Package and clean-install smoke
         run: |
+          JANET_VERSION="$(node -p 'require("./package.json").version')"
           npm pack --silent --pack-destination "$RUNNER_TEMP"
           tarball="$(find "$RUNNER_TEMP" -maxdepth 1 -name 'janet-agent-*.tgz' -print -quit)"
           test -n "$tarball"
 
           tar tzf "$tarball" | grep -q 'package/dist/main.js'
-          for skill in kb kb-init kb-ingest kb-query kb-lint kb-visualize; do
+          for skill in kb kb-init kb-ingest kb-document kb-query kb-lint kb-visualize; do
             tar tzf "$tarball" | grep -q "package/skills/$skill/SKILL.md"
           done
           tar tzf "$tarball" | grep -q 'package/skills/kb-lint/scripts/conformance.mjs'
@@ -41,15 +42,15 @@ jobs:
 
           node -e '
             const p = require("./package.json");
-            if (p.name !== "janet-agent" || p.version !== "0.1.0-beta.1") process.exit(1);
+            if (p.name !== "janet-agent") process.exit(1);
             if (p.bin.janet !== p.bin.ding) process.exit(1);
-            if (p.devDependencies["@stjbrown/agent-knowledge-skills"] !== "0.1.0") process.exit(1);
+            if (p.devDependencies["@stjbrown/agent-knowledge-skills"] !== "0.2.0") process.exit(1);
           '
 
           mkdir -p "$RUNNER_TEMP/janet-package-smoke"
           npm install --prefix "$RUNNER_TEMP/janet-package-smoke" "$tarball"
           "$RUNNER_TEMP/janet-package-smoke/node_modules/.bin/janet" --help >/dev/null
-          test "$("$RUNNER_TEMP/janet-package-smoke/node_modules/.bin/ding" --version)" = "0.1.0-beta.1"
+          test "$("$RUNNER_TEMP/janet-package-smoke/node_modules/.bin/ding" --version)" = "$JANET_VERSION"
 
           mkdir -p "$RUNNER_TEMP/janet-project/knowledge"
           printf '# Knowledge\n' > "$RUNNER_TEMP/janet-project/knowledge/index.md"

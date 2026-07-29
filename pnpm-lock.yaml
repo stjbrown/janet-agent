@@ -82,8 +82,8 @@ importers:
         version: 4.4.3
     devDependencies:
       '@stjbrown/agent-knowledge-skills':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: 0.2.0
+        version: 0.2.0
       '@types/jsdom':
         specifier: 28.0.3
         version: 28.0.3
@@ -1406,8 +1406,8 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@stjbrown/agent-knowledge-skills@0.1.0':
-    resolution: {integrity: sha512-5zLtUR79C324Q16cp4Dx9s+J2xDcHsn0z1kHDbv7VbvWUQsDqwxGQ+zVzxh6SgS6E3WcQsYWhGGmQ9gqTco5gg==}
+  '@stjbrown/agent-knowledge-skills@0.2.0':
+    resolution: {integrity: sha512-ZLLU4NQm8C94tnkQs4Q44CTPL7no11wzaby/7w9zIbpqic/BpltZhM18nLEX6Aui711yn5e2/mGRurCDIURuMA==}
     engines: {node: '>=22.13.0'}
 
   '@types/debug@4.1.13':
@@ -4139,7 +4139,7 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@stjbrown/agent-knowledge-skills@0.1.0': {}
+  '@stjbrown/agent-knowledge-skills@0.2.0': {}
 
   '@types/debug@4.1.13':
     dependencies:

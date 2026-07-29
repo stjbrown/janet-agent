@@ -48,6 +48,16 @@ janet lint                       # deterministic conformance + semantic drift au
 janet viz                        # write an interactive graph
 ```
 
+Repository documentation is conversational in this first test pass. Start Janet in the repository
+and ask:
+
+```text
+Document this repository's architecture and developer workflows.
+```
+
+Janet reads source, tests, configuration, and approved read-only Git evidence in place; only the
+selected knowledge bundle is modified.
+
 Use `-C <directory>` to select a project and `--bundle <path>` to select a bundle inside it. The
 bundle path may be relative to the selected project or an absolute path within it:
 
@@ -131,18 +141,19 @@ It needs no API key.
 
 ## Agent Knowledge skills
 
-Janet is built around the six portable
+Janet is built around the seven portable
 [Agent Knowledge](https://github.com/stjbrown/agent-knowledge) skills:
 
 - `kb`
 - `kb-init`
 - `kb-ingest`
+- `kb-document`
 - `kb-query`
 - `kb-lint`
 - `kb-visualize`
 
 Agent Knowledge owns their source, deterministic conformance checker, and graph generator. Janet
-pins `@stjbrown/agent-knowledge-skills@0.1.0` at build time and copies those skills into its own
+pins `@stjbrown/agent-knowledge-skills@0.2.0` at build time and copies those skills into its own
 package, so an installed Janet remains self-contained and works offline.
 
 You can also install the skills directly into another compatible agent without installing Janet:
@@ -161,7 +172,7 @@ pnpm pack:janet
 ```
 
 `sync:skills` runs before build, test, and pack. It resolves the installed skills package, verifies
-the exact version and all six skill directories, then regenerates the ignored root `skills/`
+the exact version and all seven skill directories, then regenerates the ignored root `skills/`
 folder.
 
 See [TESTING.md](./TESTING.md) for the prerelease test matrix.
