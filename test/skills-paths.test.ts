@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 describe("ensureSkillLinks", () => {
-  it("resolves every skill independently with project, user, then bundled precedence", () => {
+  it("uses Janet's bundled suite instead of stale generic agent installs", () => {
     const root = mkdtempSync(join(tmpdir(), "janet-skills-"));
     roots.push(root);
     const project = join(root, "project");
@@ -33,21 +33,31 @@ describe("ensureSkillLinks", () => {
     mkdirSync(project, { recursive: true });
     mkdirSync(home, { recursive: true });
 
-    const projectKb = makeSkill(join(project, ".agents", "skills"), "kb");
-    const userQuery = makeSkill(join(home, ".claude", "skills"), "kb-query");
-    // A partial Janet-specific user root must not suppress bundled fallbacks.
-    const userInit = makeSkill(join(home, ".agent-knowledge", "skills"), "kb-init");
+    makeSkill(join(project, ".agents", "skills"), "kb");
+    makeSkill(join(home, ".claude", "skills"), "kb-query");
+    makeSkill(join(home, ".agent-knowledge", "skills"), "kb-init");
 
-    const mount = ensureSkillLinks(project, home);
+    const mount = ensureSkillLinks(project);
     const links = join(project, ".agent-knowledge", "skills");
 
-    expect(readlinkSync(join(links, "kb"))).toBe(projectKb);
-    expect(readlinkSync(join(links, "kb-query"))).toBe(userQuery);
-    expect(readlinkSync(join(links, "kb-init"))).toBe(userInit);
-    expect(readlinkSync(join(links, "kb-ingest"))).toContain("/skills/kb-ingest");
-    expect(readlinkSync(join(links, "kb-document"))).toContain("/skills/kb-document");
+    for (const name of [
+      "kb",
+      "kb-init",
+      "kb-ingest",
+      "kb-document",
+      "kb-query",
+      "kb-lint",
+      "kb-visualize",
+    ]) {
+      expect(readlinkSync(join(links, name))).toContain(`/skills/${name}`);
+    }
     expect(existsSync(join(links, "janet-pdf"))).toBe(false);
-    expect(mount.allowedPaths).toEqual(expect.arrayContaining([projectKb, userQuery, userInit]));
+    expect(mount.allowedPaths).not.toEqual(
+      expect.arrayContaining([
+        join(project, ".agents", "skills", "kb"),
+        join(home, ".claude", "skills", "kb-query"),
+      ]),
+    );
   });
 
   it("preserves a real project-local mounted skill", () => {
@@ -58,7 +68,7 @@ describe("ensureSkillLinks", () => {
     mkdirSync(home, { recursive: true });
     const local = makeSkill(join(project, ".agent-knowledge", "skills"), "kb");
 
-    const mount = ensureSkillLinks(project, home);
+    const mount = ensureSkillLinks(project);
 
     expect(mount.allowedPaths).toContain(local);
   });

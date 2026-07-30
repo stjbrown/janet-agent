@@ -8,18 +8,16 @@
  * SYMLINKING each skill dir into `<project>/.agent-knowledge/skills/` and
  * configuring the workspace with that relative root.
  *
- * Layering (local shadows bundled) is resolved independently for each skill:
- * project `.agents/skills` → project `.claude/skills` → user equivalents →
- * `~/.agent-knowledge/skills` → npm-bundled fallback. A real skill directory
- * already present in the project-local mount is left untouched and wins over
- * all generated links.
+ * Janet's bundled skill suite is authoritative. Generic project/user skill
+ * installs can be older than Janet and must not create a mixed-version suite.
+ * A real skill directory deliberately placed in the project-local mount is
+ * left untouched as an explicit per-project override.
  */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { CONFIG_DIR_NAME, bundledSkillsDir, ensureDir } from "./paths.js";
 
-/** Portable skills exposed through Janet's workspace for local override. */
+/** Portable skills exposed through Janet's workspace. */
 const WORKSPACE_SKILL_NAMES = [
   "kb",
   "kb-init",
@@ -46,16 +44,8 @@ export interface SkillMount {
  * workspace-relative skills root plus the absolute paths reads must be allowed
  * to resolve through.
  */
-export function ensureSkillLinks(projectPath: string, homeDir: string = os.homedir()): SkillMount {
+export function ensureSkillLinks(projectPath: string): SkillMount {
   const bundled = bundledSkillsDir();
-  const sourceRoots = [
-    path.join(projectPath, ".agents", "skills"),
-    path.join(projectPath, ".claude", "skills"),
-    path.join(homeDir, ".agents", "skills"),
-    path.join(homeDir, ".claude", "skills"),
-    path.join(homeDir, CONFIG_DIR_NAME, "skills"),
-    bundled,
-  ];
 
   const linkRoot = path.join(projectPath, CONFIG_DIR_NAME, "skills");
   ensureDir(linkRoot);
@@ -76,8 +66,8 @@ export function ensureSkillLinks(projectPath: string, homeDir: string = os.homed
       continue;
     }
 
-    const src = sourceRoots.map((root) => path.join(root, name)).find(isSkillDir);
-    if (!src) continue;
+    const src = path.join(bundled, name);
+    if (!isSkillDir(src)) continue;
     allowedPaths.add(src);
 
     if (st?.isSymbolicLink()) {

@@ -10,6 +10,7 @@ import {
   providerAuthRoute,
   type ModelChoice,
 } from "../src/onboarding/providers.js";
+import { VERTEX_MODELS } from "../src/gateways/vertex.js";
 
 const codexChoices: ModelChoice[] = CODEX_MODELS.map((model) => ({
   id: `openai/${model.id}`,
@@ -62,14 +63,18 @@ describe("OpenAI Codex model selection", () => {
 });
 
 describe("Vertex model selection", () => {
-  it("offers Claude Opus 5 when Vertex credentials are available", () => {
+  it("offers the complete curated Vertex catalog when credentials are available", () => {
     const previousProject = process.env.GOOGLE_VERTEX_PROJECT;
     process.env.GOOGLE_VERTEX_PROJECT = "janet-provider-test";
 
     try {
-      expect(availableModels()).toContainEqual({
-        id: "vertex/claude-opus-5",
-        label: "Claude Opus 5",
+      const vertexChoices = availableModels().filter(
+        (choice) => choice.via === "Vertex AI (ADC)",
+      );
+      expect(vertexChoices).toHaveLength(VERTEX_MODELS.length);
+      expect(vertexChoices).toContainEqual({
+        id: "vertex/claude-sonnet-5",
+        label: "Claude Sonnet 5",
         via: "Vertex AI (ADC)",
       });
     } finally {

@@ -1,4 +1,7 @@
-import { hasGoogleCredentials } from "../gateways/vertex.js";
+import {
+  VERTEX_MODELS,
+  hasGoogleCredentials,
+} from "../gateways/vertex.js";
 import { hasAwsCredentials } from "../gateways/bedrock.js";
 import { getAuthStorage } from "../gateways/oauth/claude-max.js";
 import { loadSettings } from "./settings.js";
@@ -239,12 +242,9 @@ export function availableModels(): ModelChoice[] {
 
   if (hasGoogleCredentials()) {
     const via = "Vertex AI (ADC)";
-    out.push(
-      { id: "vertex/claude-opus-5", label: "Claude Opus 5", via },
-      { id: "vertex/claude-opus-4-8", label: "Claude Opus 4.8", via },
-      { id: "vertex/claude-sonnet-4-5", label: "Claude Sonnet 4.5", via },
-      { id: "vertex/gemini-2.5-pro", label: "Gemini 2.5 Pro", via },
-    );
+    for (const model of VERTEX_MODELS) {
+      out.push({ id: `vertex/${model.id}`, label: model.label, via });
+    }
   }
 
   const anthropicOAuth = hasOAuth("anthropic");

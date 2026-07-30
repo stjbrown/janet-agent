@@ -32,8 +32,7 @@ describe("Janet observational memory", () => {
       activateOnProviderChange: true,
       observation: {
         messageTokens: JANET_OBSERVATION_THRESHOLD,
-        bufferTokens: 1 / 5,
-        bufferActivation: 2_000,
+        bufferTokens: false,
         blockAfter: 2,
         previousObserverTokens: 1_000,
         threadTitle: true,

@@ -85,9 +85,10 @@ export function janetObservationalMemoryOptions() {
     observation: {
       model: getJanetObserverModel,
       messageTokens: JANET_OBSERVATION_THRESHOLD,
-      bufferTokens: 1 / 5,
-      // Keep the most recent ~2k tokens verbatim after buffered activation.
-      bufferActivation: 2_000,
+      // Async buffering can rewrite a still-growing Claude tool-use turn.
+      // Signed thinking blocks must remain byte-for-byte identical while that
+      // turn continues, so compact synchronously at a stable step boundary.
+      bufferTokens: false as const,
       blockAfter: 2,
       previousObserverTokens: 1_000,
       threadTitle: true,

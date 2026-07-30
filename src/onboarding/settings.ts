@@ -93,6 +93,36 @@ export function rememberModel(modelId: string): void {
   saveSettings(settings);
 }
 
+/**
+ * Remove a hand-entered model from the picker. If it was the global default,
+ * clear that default too so the next Janet launch cannot get stuck on it.
+ */
+export function forgetModelFromSettings(
+  settings: JanetSettings,
+  modelId: string,
+): boolean {
+  const id = modelId.trim();
+  if (!id) return false;
+  const customModels = settings.customModels ?? [];
+  const nextCustomModels = customModels.filter((model) => model !== id);
+  const removed =
+    nextCustomModels.length !== customModels.length ||
+    settings.defaultModelId === id;
+  if (!removed) return false;
+
+  if (nextCustomModels.length) settings.customModels = nextCustomModels;
+  else delete settings.customModels;
+  if (settings.defaultModelId === id) delete settings.defaultModelId;
+  return true;
+}
+
+export function forgetModel(modelId: string): boolean {
+  const settings = loadSettings();
+  if (!forgetModelFromSettings(settings, modelId)) return false;
+  saveSettings(settings);
+  return true;
+}
+
 export function rememberObservability(observability: ObservabilitySettings): void {
   const settings = loadSettings();
   settings.observability = observability;

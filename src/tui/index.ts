@@ -12,6 +12,7 @@
  * the session. Questions with options render as an arrow-key SelectList.
  */
 import {
+  CombinedAutocompleteProvider,
   Container,
   Editor,
   Loader,
@@ -23,7 +24,11 @@ import {
   Text,
   matchesKey,
 } from "@earendil-works/pi-tui";
-import type { Component, SelectItem } from "@earendil-works/pi-tui";
+import type {
+  AutocompleteProvider,
+  Component,
+  SelectItem,
+} from "@earendil-works/pi-tui";
 import type { AgentControllerEvent } from "@mastra/core/agent-controller";
 import type { Memory } from "@mastra/memory";
 import { bootJanet, type BootOptions } from "../agent/controller.js";
@@ -32,6 +37,7 @@ import { GREETING } from "../agent/persona.js";
 import { getAuthStorage } from "../gateways/oauth/claude-max.js";
 import {
   completeOnboarding,
+  forgetModel,
   loadSettings,
   rememberModel,
   rememberObservability,
@@ -58,6 +64,7 @@ import { compactConversation } from "../memory/compact.js";
 import { toolActivityLabel, toolErrorLabel } from "./activity.js";
 import { createInterruptController, type InterruptResult } from "./interrupt.js";
 import { MultiSelectList } from "./multi-select.js";
+import { SLASH_COMMANDS, slashCommandHelp } from "./slash-commands.js";
 import { clearConversation } from "./thread.js";
 import { formatTraceTree, traceStatus } from "./traces.js";
 import { c, editorTheme, markdownTheme } from "./theme.js";
@@ -65,24 +72,7 @@ import { c, editorTheme, markdownTheme } from "./theme.js";
 /** OAuth providers janet can log in to. */
 const OAUTH_PROVIDERS = ["anthropic", "openai-codex"] as const;
 
-const HELP_TEXT = `Commands:
-  /models                Pick one or more providers, then a model
-  /model [provider/id]   Open the picker, or switch directly by id
-  /providers             Browse provider status and setup
-  /login <provider> [mode]
-                         Log in; OpenAI mode is browser or device
-  /logout <provider>     Remove stored credentials for a provider
-  /auth                  Show which providers are authenticated
-  /observability         Configure opt-in tracing
-  /traces                Browse recent local traces
-  /compact               Flush this conversation into Observational Memory
-  /clear                 Start a blank conversation (keeps the old thread)
-  /cancel                Cancel the active run
-  /help                  This help
-  /quit                  Exit (double Ctrl+C also works)
-
-While Janet is working, Esc or Ctrl+C cancels the active run.
-Anything else is a message to Janet.`;
+const HELP_TEXT = slashCommandHelp();
 
 interface PendingApproval {
   toolCallId: string;
@@ -185,6 +175,39 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
   let omWindows: OMWindows | null = null;
   let omActivity: "observing" | "reflecting" | null = null;
   const activeTools = new Map<string, string>();
+
+  const builtinAutocomplete = new CombinedAutocompleteProvider(
+    SLASH_COMMANDS,
+    paths.projectPath,
+  );
+  const autocomplete: AutocompleteProvider = {
+    getSuggestions: (lines, cursorLine, cursorCol, options) => {
+      if (pendingInput || pendingApproval || pendingQuestion || activeSelect) {
+        return Promise.resolve(null);
+      }
+      return builtinAutocomplete.getSuggestions(
+        lines,
+        cursorLine,
+        cursorCol,
+        options,
+      );
+    },
+    applyCompletion: (lines, cursorLine, cursorCol, item, prefix) =>
+      builtinAutocomplete.applyCompletion(
+        lines,
+        cursorLine,
+        cursorCol,
+        item,
+        prefix,
+      ),
+    shouldTriggerFileCompletion: (lines, cursorLine, cursorCol) =>
+      builtinAutocomplete.shouldTriggerFileCompletion(
+        lines,
+        cursorLine,
+        cursorCol,
+      ),
+  };
+  editor.setAutocompleteProvider(autocomplete);
 
   const updateStatus = (): void => {
     const model = session.model.hasSelection() ? session.model.get() : "no model — /model <id>";
@@ -565,6 +588,11 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
   };
 
   const selectModel = async (modelId: string): Promise<void> => {
+    if (!/^[^/\s]+\/\S+$/.test(modelId)) {
+      addLine(c.error(`  Invalid model id: ${modelId || "(empty)"}. Expected provider/model.`));
+      updateStatus();
+      return;
+    }
     try {
       await session.model.switch({ modelId });
       completeOnboarding(modelId, new Date().toISOString());
@@ -589,10 +617,9 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
     const ordered = currentChoice
       ? [currentChoice, ...available.filter(({ choice }) => choice.id !== current)]
       : available;
-    // Large gateways can expose hundreds of models. Keep the arrow list useful
-    // and always offer an exact model-id entry path.
-    const visible = ordered.slice(0, 29);
-    const items: SelectItem[] = visible.map(({ choice, group }) => ({
+    // SelectList scrolls within a bounded viewport, so retain every discovered
+    // model instead of silently truncating large provider catalogs.
+    const items: SelectItem[] = ordered.map(({ choice, group }) => ({
       value: choice.id,
       label:
         groups.length > 1
@@ -604,11 +631,9 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
       value: "__janet_enter_model_id__",
       label: "Enter another model ID…",
       description:
-        ordered.length > visible.length
-          ? `${ordered.length - visible.length} more catalog models; enter the exact id`
-          : groups.length === 1
-            ? `Use any ${groups[0]!.id}/model supported by Mastra`
-            : "Use any provider/model supported by Mastra",
+        groups.length === 1
+          ? `Use any ${groups[0]!.id}/model supported by Mastra`
+          : "Use any provider/model supported by Mastra",
     });
 
     addLine(
@@ -1278,6 +1303,22 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
         // No id → open the picker; an explicit id still works for power users.
         if (!inputId) {
           showModelPicker();
+          break;
+        }
+        if (rest[0]?.toLowerCase() === "forget") {
+          const savedId = rest.slice(1).join(" ").trim();
+          if (!savedId) {
+            addLine(c.dim("Usage: /model forget <provider/id>"));
+            break;
+          }
+          if (forgetModel(savedId)) {
+            addLine(c.accentBold(`  ✓ Forgot ${savedId}.`));
+            if (session.model.hasSelection() && session.model.get() === savedId) {
+              addLine(c.dim("  It remains active for this session; choose another model to switch."));
+            }
+          } else {
+            addLine(c.dim(`  ${savedId} is not in your saved model list.`));
+          }
           break;
         }
         const id = normalizeModelSelection(inputId, availableModels());

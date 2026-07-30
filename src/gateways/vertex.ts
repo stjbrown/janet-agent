@@ -15,6 +15,32 @@ import type {
 export const VERTEX_GATEWAY_ID = "vertex";
 
 /**
+ * Current text-generation models exposed by Janet's custom Vertex gateway.
+ * This runtime list is shared with onboarding because ADC-backed Vertex models
+ * are not supplied by models.dev's API-key catalog.
+ */
+export const VERTEX_MODELS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+  { id: "claude-fable-5", label: "Claude Fable 5" },
+  { id: "claude-opus-5", label: "Claude Opus 5" },
+  { id: "claude-opus-4-8", label: "Claude Opus 4.8" },
+  { id: "claude-opus-4-7", label: "Claude Opus 4.7" },
+  { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
+  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+  { id: "claude-opus-4-5@20251101", label: "Claude Opus 4.5" },
+  { id: "claude-sonnet-4-5@20250929", label: "Claude Sonnet 4.5" },
+  { id: "claude-opus-4-1@20250805", label: "Claude Opus 4.1" },
+  { id: "claude-opus-4@20250514", label: "Claude Opus 4" },
+  { id: "claude-sonnet-4@20250514", label: "Claude Sonnet 4" },
+  { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+  { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+  { id: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash Lite" },
+  { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+] as const;
+
+/**
  * Google Vertex AI gateway — NET-NEW (mastracode has no Vertex). Modeled on the
  * Bedrock gateway: authenticates via Google Application Default Credentials
  * (ADC) or a service-account file rather than a bearer key.
@@ -93,22 +119,33 @@ function vertexLocation(): string {
  * thinking replays its thinking blocks across tool steps, and dropping them
  * makes the model lose the thread of what it already tried and spin in loops.
  */
+export function removeVertexAnthropicPrefill(
+  params: Record<string, unknown>,
+): Record<string, unknown> {
+  const prompt = params["prompt"];
+  if (!Array.isArray(prompt)) return params;
+
+  const messages = prompt as Array<{ role?: string }>;
+  let keep = messages.length;
+  while (keep > 1 && messages[keep - 1]?.role === "assistant") keep--;
+  const dropped = messages.length - keep;
+  if (!dropped) return params;
+
+  if (process.env["JANET_DEBUG_MODEL"]) {
+    process.stderr.write(
+      `[model] dropped ${dropped} trailing assistant (prefill) message(s)\n`,
+    );
+  }
+
+  // Provider prompts may share arrays with memory/history construction.
+  // Never mutate them in place: signed Anthropic thinking blocks must be
+  // replayed exactly as returned across tool-use steps.
+  return { ...params, prompt: messages.slice(0, keep) };
+}
+
 const vertexAnthropicMiddleware = {
-  transformParams: async ({ params }: { params: Record<string, unknown> }) => {
-    const prompt = params["prompt"];
-    if (Array.isArray(prompt)) {
-      const messages = prompt as Array<{ role?: string }>;
-      let dropped = 0;
-      while (messages.length > 1 && messages[messages.length - 1]?.role === "assistant") {
-        messages.pop();
-        dropped++;
-      }
-      if (dropped && process.env["JANET_DEBUG_MODEL"]) {
-        process.stderr.write(`[model] dropped ${dropped} trailing assistant (prefill) message(s)\n`);
-      }
-    }
-    return params;
-  },
+  transformParams: async ({ params }: { params: Record<string, unknown> }) =>
+    removeVertexAnthropicPrefill(params),
 };
 
 /** Build a Vertex language model for a bare model id (no `vertex/` prefix). */
@@ -150,13 +187,7 @@ export class VertexGateway extends MastraModelGateway {
         apiKeyEnvVar: "",
         apiKeyHeader: "Authorization",
         gateway: this.id,
-        models: [
-          "claude-opus-5",
-          "claude-opus-4-8",
-          "claude-sonnet-4-5",
-          "gemini-2.5-pro",
-          "gemini-2.5-flash",
-        ],
+        models: VERTEX_MODELS.map((model) => model.id),
       },
     };
   }
