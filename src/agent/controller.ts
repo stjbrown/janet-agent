@@ -50,9 +50,9 @@ const stateSchema = z.object({
   projectPath: z.string(),
   bundlePath: z.string(),
   configDir: z.string(),
-  // Core's approval gate reads `state.yolo === true`. Janet enables normal
-  // in-loop tool execution and puts approval on the dangerous tools themselves;
-  // denied headless categories are still removed from the active tool set.
+  // Core's global approval gate breaks ordinary tool continuity on provider
+  // resumes. Janet keeps normal tools in-loop and gates shell execution inside
+  // its dedicated suspension-based command tool.
   yolo: z.boolean(),
   // Tool-approval rules by category/tool. Must be in the schema or session state
   // strips it, and setForCategory / getRules silently no-op.
@@ -117,10 +117,12 @@ export async function bootJanet(opts: BootOptions): Promise<JanetSessionBoot> {
     projectPath: paths.projectPath,
     skills,
   });
+  const rules = permissionRulesFor(opts);
   const agent = createJanetAgent({
     storage,
     workspace,
     projectPath: paths.projectPath,
+    executePolicy: rules.categories.execute,
   });
 
   const controller = new AgentController<JanetState>({
@@ -147,7 +149,7 @@ export async function bootJanet(opts: BootOptions): Promise<JanetSessionBoot> {
       bundlePath: paths.bundlePath,
       configDir: paths.globalConfigDir,
       yolo: true,
-      permissionRules: permissionRulesFor(opts),
+      permissionRules: rules,
     },
     workspace: () => workspace,
     ...(observability.observability

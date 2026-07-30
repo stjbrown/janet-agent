@@ -13,7 +13,7 @@ describe("published package metadata", () => {
     };
 
     expect(metadata.name).toBe("janet-agent");
-    expect(metadata.version).toBe("0.1.0-beta.1");
+    expect(metadata.version).toBe("0.1.0-beta.2");
     expect(metadata.bin.janet).toBe(metadata.bin.ding);
     expect(metadata.devDependencies["@stjbrown/agent-knowledge-skills"]).toBe("0.2.0");
   });

@@ -99,21 +99,13 @@ function vertexLocation(): string {
 }
 
 /**
- * Claude-on-Vertex rejects requests whose message array ends with an assistant
- * turn ("does not support assistant message prefill"). Extended-thinking models
- * (e.g. opus-4-8) leave a trailing reasoning block when a tool suspends and the
- * turn resumes (ask_user), which trips this. Not replaying reasoning back to the
- * model avoids it. Applied to all Vertex Claude models — harmless when there's
- * no reasoning to replay.
- */
-/**
  * Claude-on-Vertex rejects a request whose message array ends with an assistant
  * turn ("does not support assistant message prefill. The conversation must end
  * with a user message"). In a normal agent loop the model call always ends with
- * a user or tool-result message; a trailing assistant message is only ever an
- * (unintended) prefill — extended-thinking models (opus-4-8) can leave one after
- * a tool approval / suspension resumes. Janet never prefills deliberately, so we
- * defensively drop any trailing assistant message(s).
+ * a user or tool-result message. Extended-thinking models can leave a trailing
+ * reasoning-only assistant message after a suspension resumes, so Janet drops
+ * that unintended prefill. A trailing assistant tool call must remain intact,
+ * however, or Vertex cannot correlate the following tool result.
  *
  * NOTE: we deliberately do NOT strip reasoning (`sendReasoning`) — extended
  * thinking replays its thinking blocks across tool steps, and dropping them
@@ -125,9 +117,27 @@ export function removeVertexAnthropicPrefill(
   const prompt = params["prompt"];
   if (!Array.isArray(prompt)) return params;
 
-  const messages = prompt as Array<{ role?: string }>;
+  const messages = prompt as Array<{ role?: string; content?: unknown }>;
+  const containsToolCall = (message: { content?: unknown }): boolean =>
+    Array.isArray(message.content) &&
+    message.content.some((part) => {
+      if (!part || typeof part !== "object") return false;
+      const record = part as Record<string, unknown>;
+      return (
+        record["type"] === "tool-call" ||
+        record["type"] === "tool-use" ||
+        record["type"] === "tool_use" ||
+        typeof record["toolCallId"] === "string"
+      );
+    });
   let keep = messages.length;
-  while (keep > 1 && messages[keep - 1]?.role === "assistant") keep--;
+  while (
+    keep > 1 &&
+    messages[keep - 1]?.role === "assistant" &&
+    !containsToolCall(messages[keep - 1]!)
+  ) {
+    keep--;
+  }
   const dropped = messages.length - keep;
   if (!dropped) return params;
 

@@ -67,6 +67,7 @@ import { MultiSelectList } from "./multi-select.js";
 import { SLASH_COMMANDS, slashCommandHelp } from "./slash-commands.js";
 import { clearConversation } from "./thread.js";
 import { formatTraceTree, traceStatus } from "./traces.js";
+import { activeRunSubmissionMessage } from "./submission.js";
 import { c, editorTheme, markdownTheme } from "./theme.js";
 
 /** OAuth providers janet can log in to. */
@@ -77,6 +78,7 @@ const HELP_TEXT = slashCommandHelp();
 interface PendingApproval {
   toolCallId: string;
   toolName: string;
+  suspension: boolean;
 }
 
 interface QuestionOption {
@@ -355,10 +357,26 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
         activeTools.delete(event.toolCallId);
         setLoader(false);
         const payload = event.suspendPayload as {
+          kind?: string;
+          command?: string;
           question?: string;
           options?: QuestionOption[];
           selectionMode?: string;
         };
+        if (payload?.kind === "command_approval") {
+          pendingApproval = {
+            toolCallId: event.toolCallId,
+            toolName: event.toolName,
+            suspension: true,
+          };
+          addLine(
+            c.warn("  Janet wants to run: ") +
+              c.bold(payload.command ?? "(unknown command)"),
+          );
+          addLine(c.dim("     y = yes · n = no · a = always allow commands this session"));
+          updateStatus();
+          break;
+        }
         const question = payload?.question ?? `Janet needs input for ${event.toolName}.`;
         const options = payload?.options;
         const multi = payload?.selectionMode === "multi_select";
@@ -400,7 +418,11 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
       case "tool_approval_required":
         closeSegment();
         activeTools.delete(event.toolCallId);
-        pendingApproval = { toolCallId: event.toolCallId, toolName: event.toolName };
+        pendingApproval = {
+          toolCallId: event.toolCallId,
+          toolName: event.toolName,
+          suspension: false,
+        };
         addLine(
           c.warn(`  Janet wants to run ${c.bold(event.toolName)}.`) +
             c.dim("  y = yes · n = no · a = always allow this kind"),
@@ -1370,19 +1392,32 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
       return;
     }
 
-    // Pending tool approval: y / n / a (always allow this category).
+    // Pending tool approval: y / n / a (always allow for the shown scope).
     if (pendingApproval) {
       const approve = /^y(es)?$/i.test(text);
       const decline = /^n(o)?$/i.test(text);
       const always = /^a(lways)?$/i.test(text);
       if (approve || decline || always) {
-        const { toolCallId } = pendingApproval;
+        const { toolCallId, suspension } = pendingApproval;
         pendingApproval = null;
         addLine(c.dim(always ? "  ✓ always allowed" : approve ? "  ✓ approved" : "  ✗ declined"));
         updateStatus();
-        void session.respondToToolApproval({
-          decision: always ? "always_allow_category" : approve ? "approve" : "decline",
-          toolCallId,
+        const response = suspension
+          ? session.respondToToolSuspension({
+              toolCallId,
+              resumeData: { approved: approve || always, always },
+            })
+          : session.respondToToolApproval({
+              decision: always
+                ? "always_allow_category"
+                : approve
+                  ? "approve"
+                  : "decline",
+              toolCallId,
+            });
+        void Promise.resolve(response).catch((error: Error) => {
+          addLine(c.error(`  Could not apply tool approval: ${error.message}`));
+          updateStatus();
         });
         return;
       }
@@ -1397,6 +1432,12 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
 
     if (text.startsWith("/")) {
       void handleCommand(text);
+      return;
+    }
+
+    const activeRunMessage = activeRunSubmissionMessage(running);
+    if (activeRunMessage) {
+      addLine(c.dim(`  ${activeRunMessage}`));
       return;
     }
 

@@ -8,7 +8,7 @@ given with `-C`. Its knowledge bundle defaults to `knowledge/`, but `--bundle <p
 another directory inside that project. Conversation history stays scoped to the project. The
 knowledge remains open, diffable, and usable without Janet.
 
-> Janet is prerelease software. The current npm release is `0.1.0-beta.1` under the `next` tag.
+> Janet is prerelease software. The current npm release is `0.1.0-beta.2` under the `next` tag.
 
 ## Install
 

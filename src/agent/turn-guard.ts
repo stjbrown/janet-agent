@@ -3,10 +3,13 @@ interface SkillToolInput {
   skillName?: unknown;
   path?: unknown;
   query?: unknown;
+  command?: unknown;
 }
 
 const SKILL_ALREADY_LOADED =
   "This skill procedure is already loaded for the current turn. Continue from the procedure already in context.";
+const COMMAND_ALREADY_RAN =
+  "This exact command already ran immediately before this call. Use its result instead of repeating it.";
 
 function requestContextFromToolContext(context: unknown): object | undefined {
   if (!context || typeof context !== "object" || !("requestContext" in context)) {
@@ -41,6 +44,12 @@ function invocationKey(toolName: string, input: unknown): string | undefined {
   return;
 }
 
+function executionKey(toolName: string, input: unknown): string | undefined {
+  if (toolName !== "mastra_workspace_execute_command") return;
+  const command = stringField(input, "command");
+  return command ? `execute:${command.trim()}` : undefined;
+}
+
 function loadedProcedureName(toolName: string, input: unknown): string | undefined {
   if (toolName === "skill") return stringField(input, "name");
   if (toolName !== "skill_read") return;
@@ -62,6 +71,7 @@ function loadedProcedureName(toolName: string, input: unknown): string | undefin
 export function createSkillTurnGuard() {
   const callsByTurn = new WeakMap<object, Set<string>>();
   const proceduresByTurn = new WeakMap<object, Set<string>>();
+  const lastExecutionByTurn = new WeakMap<object, string>();
 
   const stateFor = (requestContext: object) => {
     let calls = callsByTurn.get(requestContext);
@@ -80,8 +90,22 @@ export function createSkillTurnGuard() {
   return {
     beforeToolCall(toolName: string, input: unknown, context: unknown) {
       const requestContext = requestContextFromToolContext(context);
+      if (!requestContext) return;
+
+      const commandKey = executionKey(toolName, input);
+      if (commandKey) {
+        if (lastExecutionByTurn.get(requestContext) === commandKey) {
+          return { proceed: false as const, output: COMMAND_ALREADY_RAN };
+        }
+        lastExecutionByTurn.set(requestContext, commandKey);
+      } else {
+        // An intervening read/edit/skill can materially change what rerunning a
+        // command means, so only consecutive identical executions are blocked.
+        lastExecutionByTurn.delete(requestContext);
+      }
+
       const key = invocationKey(toolName, input);
-      if (!requestContext || !key) return;
+      if (!key) return;
 
       const { calls, procedures } = stateFor(requestContext);
       const procedureName = loadedProcedureName(toolName, input);
@@ -104,8 +128,15 @@ export function createSkillTurnGuard() {
     ) {
       if (!error) return;
       const requestContext = requestContextFromToolContext(context);
+      if (!requestContext) return;
+
+      const commandKey = executionKey(toolName, input);
+      if (commandKey && lastExecutionByTurn.get(requestContext) === commandKey) {
+        lastExecutionByTurn.delete(requestContext);
+      }
+
       const key = invocationKey(toolName, input);
-      if (!requestContext || !key) return;
+      if (!key) return;
 
       const { calls, procedures } = stateFor(requestContext);
       calls.delete(key);

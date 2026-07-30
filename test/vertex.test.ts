@@ -35,6 +35,31 @@ describe("Vertex Anthropic prompt handling", () => {
     expect(removeVertexAnthropicPrefill(params)).toBe(params);
   });
 
+  it("preserves a trailing assistant tool call so its result can be correlated", () => {
+    const toolCall = {
+      role: "assistant",
+      content: [
+        {
+          type: "reasoning",
+          text: "",
+          providerMetadata: { anthropic: { signature: "signed" } },
+        },
+        {
+          type: "tool-call",
+          toolCallId: "toolu_vrtx_01Correlation",
+          toolName: "mastra_workspace_execute_command",
+          input: { command: "pnpm test" },
+        },
+      ],
+    };
+    const params = {
+      prompt: [{ role: "user", content: "run the tests" }, toolCall],
+    };
+
+    expect(removeVertexAnthropicPrefill(params)).toBe(params);
+    expect(params.prompt.at(-1)).toBe(toolCall);
+  });
+
   it("advertises every curated Vertex model through the gateway catalog", async () => {
     const providers = await createVertexGateway().fetchProviders();
 

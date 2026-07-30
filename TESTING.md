@@ -110,7 +110,7 @@ status `0`. Repeat with a project path containing spaces.
 
 - Ask Janet to initialize a wiki; ordinary skill and workspace operations should not prompt.
 - Request a shell command; it should require explicit approval.
-- Decline it, then grant only that category for the current session.
+- Decline it, then allow command execution for the current session.
 - Cancel active turns separately with Esc, Ctrl+C, and `/cancel`.
 - Confirm a double Ctrl+C still exits.
 

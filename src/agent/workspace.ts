@@ -4,10 +4,7 @@ import {
   Workspace,
   WORKSPACE_TOOLS,
 } from "@mastra/core/workspace";
-import type {
-  ToolConfigContext,
-  ToolConfigWithArgsContext,
-} from "@mastra/core/workspace";
+import type { ToolConfigContext } from "@mastra/core/workspace";
 import type { SkillMount } from "./skills-paths.js";
 
 export interface WorkspaceOptions {
@@ -38,17 +35,6 @@ export function editToolsEnabled(context: PolicyContext): boolean {
   return categoryPolicy(context, "edit") === "allow";
 }
 
-export function executionToolsEnabled(context: PolicyContext): boolean {
-  const policy = categoryPolicy(context, "execute");
-  return policy === "allow" || policy === "ask";
-}
-
-export function requiresExecutionApproval(
-  context: ToolConfigWithArgsContext,
-): boolean {
-  return categoryPolicy(context, "execute") !== "allow";
-}
-
 /**
  * Build the workspace. The filesystem base is the whole project (so Janet can
  * read README/notes for ingest/schema inference); writes stay within the
@@ -56,11 +42,9 @@ export function requiresExecutionApproval(
  * WORKSPACE-RELATIVE path (Mastra rejects absolute skills paths); the symlink
  * targets are added to `allowedPaths` so reads resolve through the links.
  *
- * Approval is NOT configured here — it is governed entirely by the controller's
- * permission policy + tool categories (see permissions.ts), so there is a single
- * source of truth and the "always allow this category" flow works. We keep
- * `requireReadBeforeWrite` on the mutating tools as a correctness guard (it is
- * not an approval prompt).
+ * The built-in sandbox tools stay disabled. Janet exposes a dedicated command
+ * tool whose suspension-based approval keeps the original provider tool-call ID
+ * intact. `requireReadBeforeWrite` remains a correctness guard for mutations.
  */
 export function createWorkspace(opts: WorkspaceOptions): Workspace {
   return new Workspace({
@@ -72,9 +56,6 @@ export function createWorkspace(opts: WorkspaceOptions): Workspace {
     sandbox: new LocalSandbox({ workingDirectory: opts.projectPath }),
     skills: [opts.skills.relativeRoot],
     tools: {
-      // AgentController's global approval mode resumes the model once per tool.
-      // Stateless Codex OAuth needs ordinary reads/edits to remain inside one
-      // continuous agent loop, so known-safe workspace actions opt out here.
       // Unknown future workspace tools inherit `false` and stay unavailable
       // until Janet gives them an explicit policy.
       enabled: false,
@@ -130,16 +111,13 @@ export function createWorkspace(opts: WorkspaceOptions): Workspace {
         requireApproval: false,
       },
       [WORKSPACE_TOOLS.SANDBOX.EXECUTE_COMMAND]: {
-        enabled: executionToolsEnabled,
-        requireApproval: requiresExecutionApproval,
+        enabled: false,
       },
       [WORKSPACE_TOOLS.SANDBOX.GET_PROCESS_OUTPUT]: {
-        enabled: executionToolsEnabled,
-        requireApproval: requiresExecutionApproval,
+        enabled: false,
       },
       [WORKSPACE_TOOLS.SANDBOX.KILL_PROCESS]: {
-        enabled: executionToolsEnabled,
-        requireApproval: requiresExecutionApproval,
+        enabled: false,
       },
     },
   });

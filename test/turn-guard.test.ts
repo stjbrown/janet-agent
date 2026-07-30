@@ -82,4 +82,80 @@ describe("per-turn skill guard", () => {
 
     expect(guard.beforeToolCall("skill", input, context)).toBeUndefined();
   });
+
+  it("short-circuits a consecutive identical shell command", () => {
+    const guard = createSkillTurnGuard();
+    const context = { requestContext: {} };
+    const input = { command: "node conformance.mjs knowledge" };
+
+    expect(
+      guard.beforeToolCall(
+        "mastra_workspace_execute_command",
+        input,
+        context,
+      ),
+    ).toBeUndefined();
+    expect(
+      guard.beforeToolCall(
+        "mastra_workspace_execute_command",
+        input,
+        context,
+      ),
+    ).toEqual({
+      proceed: false,
+      output:
+        "This exact command already ran immediately before this call. Use its result instead of repeating it.",
+    });
+  });
+
+  it("allows the same shell command after another tool changes the turn", () => {
+    const guard = createSkillTurnGuard();
+    const context = { requestContext: {} };
+    const execute = { command: "node conformance.mjs knowledge" };
+
+    guard.beforeToolCall(
+      "mastra_workspace_execute_command",
+      execute,
+      context,
+    );
+    guard.beforeToolCall(
+      "mastra_workspace_edit_file",
+      { path: "knowledge/index.md" },
+      context,
+    );
+
+    expect(
+      guard.beforeToolCall(
+        "mastra_workspace_execute_command",
+        execute,
+        context,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("allows an identical shell retry when execution fails", () => {
+    const guard = createSkillTurnGuard();
+    const context = { requestContext: {} };
+    const input = { command: "pnpm test" };
+
+    guard.beforeToolCall(
+      "mastra_workspace_execute_command",
+      input,
+      context,
+    );
+    guard.afterToolCall(
+      "mastra_workspace_execute_command",
+      input,
+      context,
+      new Error("execution failed"),
+    );
+
+    expect(
+      guard.beforeToolCall(
+        "mastra_workspace_execute_command",
+        input,
+        context,
+      ),
+    ).toBeUndefined();
+  });
 });

@@ -9,6 +9,8 @@ import { guardPdfWorkspaceRead } from "../tools/pdf-guard.js";
 import { createPdfTools } from "../tools/pdf.js";
 import { guardWebWorkspaceRead } from "../tools/web-guard.js";
 import { createWebTools } from "../tools/web/index.js";
+import { createExecuteTool } from "../tools/execute.js";
+import { guardWorkspaceDirectoryRead } from "../tools/workspace-read-guard.js";
 import { createJanetMemory } from "../memory/index.js";
 import { createSkillTurnGuard } from "./turn-guard.js";
 
@@ -18,6 +20,8 @@ export interface JanetAgentOptions {
   workspace: Workspace;
   /** Absolute workspace root used to constrain Janet's local PDF tools. */
   projectPath: string;
+  /** Shell policy fixed for this interactive or headless process. */
+  executePolicy: "allow" | "ask" | "deny";
 }
 
 /**
@@ -32,6 +36,10 @@ export function createJanetAgent(opts: JanetAgentOptions): Agent {
   const guardSkillLoader = createSkillTurnGuard();
   const pdfTools = createPdfTools({ projectPath: opts.projectPath });
   const webTools = createWebTools({ projectPath: opts.projectPath });
+  const executeTools = createExecuteTool({
+    workspace: opts.workspace,
+    policy: opts.executePolicy,
+  });
 
   return new Agent({
     id: "janet",
@@ -41,13 +49,19 @@ export function createJanetAgent(opts: JanetAgentOptions): Agent {
     memory,
     workspace: opts.workspace,
     skills: [janetPdfSkill, janetWebSkill],
-    tools: { ...pdfTools, ...webTools },
+    tools: { ...pdfTools, ...webTools, ...executeTools },
     hooks: {
       beforeToolCall: ({ toolName, input, context }) => {
         const pdfGuard = guardPdfWorkspaceRead(toolName, input);
         if (pdfGuard) return pdfGuard;
         const webGuard = guardWebWorkspaceRead(toolName, input);
         if (webGuard) return webGuard;
+        const directoryGuard = guardWorkspaceDirectoryRead(
+          toolName,
+          input,
+          opts.projectPath,
+        );
+        if (directoryGuard) return directoryGuard;
         return guardSkillLoader.beforeToolCall(toolName, input, context);
       },
       afterToolCall: ({ toolName, input, context, error }) =>
