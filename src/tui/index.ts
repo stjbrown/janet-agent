@@ -69,9 +69,16 @@ import { clearConversation } from "./thread.js";
 import { formatTraceTree, traceStatus } from "./traces.js";
 import { activeRunSubmissionMessage } from "./submission.js";
 import { c, editorTheme, markdownTheme } from "./theme.js";
+import { workspaceWriteTarget } from "../agent/workspace-write-approval.js";
 
 /** OAuth providers janet can log in to. */
 const OAUTH_PROVIDERS = ["anthropic", "openai-codex"] as const;
+type OAuthProviderId = (typeof OAUTH_PROVIDERS)[number];
+type OpenAiAuthMode = "browser" | "device";
+
+function isOAuthProviderId(value: string): value is OAuthProviderId {
+  return (OAUTH_PROVIDERS as readonly string[]).includes(value);
+}
 
 const HELP_TEXT = slashCommandHelp();
 
@@ -132,7 +139,14 @@ function resolveAnswer(q: PendingQuestion, text: string): string | string[] | un
 }
 
 export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<number> {
-  const { controller, session, paths, herdrDetach, observability } = await bootJanet({
+  const {
+    controller,
+    session,
+    paths,
+    projectInstructions,
+    herdrDetach,
+    observability,
+  } = await bootJanet({
     ...opts,
     interactive: true,
   });
@@ -423,10 +437,16 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
           toolName: event.toolName,
           suspension: false,
         };
-        addLine(
-          c.warn(`  Janet wants to run ${c.bold(event.toolName)}.`) +
-            c.dim("  y = yes · n = no · a = always allow this kind"),
-        );
+        {
+          const target = workspaceWriteTarget(event.args);
+          addLine(
+            c.warn(
+              target
+                ? `  Janet wants to write outside the selected bundle: ${c.bold(target)}`
+                : `  Janet wants to run ${c.bold(event.toolName)}.`,
+            ) + c.dim("  y = yes · n = no · a = always allow this kind"),
+          );
+        }
         updateStatus();
         break;
       case "error": {
@@ -607,6 +627,68 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
     chat.removeChild(select);
     if (activeSelect === select) activeSelect = null;
     ui.setFocus(editor);
+  };
+
+  const loginToProvider = async (
+    providerId: OAuthProviderId,
+    authMode?: OpenAiAuthMode,
+  ): Promise<void> => {
+    addLine(c.dim(`Starting ${providerId} login…`));
+    try {
+      await getAuthStorage().login(providerId, {
+        onAuth: (info) => {
+          addLine(c.accent("  Open this URL in your browser to authorize:"));
+          addLine("  " + info.url);
+          if (info.instructions) addLine(c.dim("  " + info.instructions));
+        },
+        onProgress: (message) => addLine(c.dim("  " + message)),
+        onManualCodeInput: () =>
+          promptInput("Paste the code shown after you authorize:"),
+        onPrompt: (prompt) => promptInput(prompt.message, prompt.placeholder),
+        ...(authMode ? { authMode } : {}),
+      });
+      addLine(c.accentBold(`  ✓ Logged in to ${providerId}.`));
+    } catch (error) {
+      addLine(c.error(`  Login failed: ${(error as Error).message}`));
+    } finally {
+      // A successful browser callback can win the race with the manual-code
+      // prompt. Disarm that abandoned prompt so it cannot consume the next
+      // chat message after login completes.
+      pendingInput = null;
+      updateStatus();
+    }
+  };
+
+  const showLoginPicker = (): void => {
+    addLine(c.accentBold("  Log in to a provider"));
+    addLine(c.dim("  ↑/↓ to move · Enter to choose · Esc to close:"));
+    const select = new SelectList(
+      [
+        {
+          value: "anthropic",
+          label: "Anthropic",
+          description: "Use a Claude subscription",
+        },
+        {
+          value: "openai-codex",
+          label: "OpenAI",
+          description: "Use a ChatGPT/Codex subscription",
+        },
+      ],
+      OAUTH_PROVIDERS.length,
+      editorTheme.selectList,
+    );
+    select.onSelect = (item: SelectItem) => {
+      closeActiveSelect(select);
+      if (isOAuthProviderId(item.value)) {
+        void loginToProvider(item.value);
+      }
+    };
+    select.onCancel = () => closeActiveSelect(select);
+    activeSelect = select;
+    chat.addChild(select);
+    ui.setFocus(select);
+    updateStatus();
   };
 
   const selectModel = async (modelId: string): Promise<void> => {
@@ -1001,7 +1083,7 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
         {
           value: "local",
           label: "Local trace history",
-          description: "Store traces in ~/.agent-knowledge/observability.db.",
+          description: "Store traces in ~/.janet/observability.db.",
         },
         {
           value: "phoenix",
@@ -1254,43 +1336,29 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
         await showLocalTraces();
         break;
       case "login": {
-        const providerId = (rest[0] || "anthropic").trim();
-        if (!(OAUTH_PROVIDERS as readonly string[]).includes(providerId)) {
+        const requestedProvider = rest[0]?.trim();
+        if (!requestedProvider) {
+          showLoginPicker();
+          break;
+        }
+        if (!isOAuthProviderId(requestedProvider)) {
           addLine(c.dim(`Usage: /login <${OAUTH_PROVIDERS.join(" | ")}>`));
           break;
         }
-        const authMode = rest[1]?.trim();
+        const providerId = requestedProvider;
+        const requestedMode = rest[1]?.trim();
         if (
-          authMode &&
-          (providerId !== "openai-codex" || !["browser", "device"].includes(authMode))
+          requestedMode &&
+          (providerId !== "openai-codex" ||
+            !["browser", "device"].includes(requestedMode))
         ) {
           addLine(c.dim("Usage: /login openai-codex [browser | device]"));
           break;
         }
-        addLine(c.dim(`Starting ${providerId} login…`));
-        try {
-          await getAuthStorage().login(providerId, {
-            onAuth: (info) => {
-              addLine(c.accent("  Open this URL in your browser to authorize:"));
-              addLine("  " + info.url);
-              if (info.instructions) addLine(c.dim("  " + info.instructions));
-            },
-            onProgress: (m) => addLine(c.dim("  " + m)),
-            onManualCodeInput: () => promptInput("Paste the code shown after you authorize:"),
-            onPrompt: (p) => promptInput(p.message, p.placeholder),
-            ...(authMode ? { authMode } : {}),
-          });
-          addLine(c.accentBold(`  ✓ Logged in to ${providerId}.`));
-          updateStatus();
-        } catch (err) {
-          addLine(c.error(`  Login failed: ${(err as Error).message}`));
-        } finally {
-          // A successful browser callback can win the race with the manual-code
-          // prompt. Disarm that abandoned prompt so it cannot consume the next
-          // chat message after login completes.
-          pendingInput = null;
-          updateStatus();
-        }
+        await loginToProvider(
+          providerId,
+          requestedMode as OpenAiAuthMode | undefined,
+        );
         break;
       }
       case "logout": {
@@ -1469,6 +1537,9 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
         `Ask me anything in the bundle, or say what to ingest. /help for commands.`,
     ),
   );
+  if (projectInstructions) {
+    addLine(c.dim(`Project instructions: ${projectInstructions.path}`));
+  }
   for (const warning of observability.status.warnings) {
     addLine(c.warn(`Observability: ${warning}`));
   }

@@ -35,10 +35,10 @@ describe("ensureSkillLinks", () => {
 
     makeSkill(join(project, ".agents", "skills"), "kb");
     makeSkill(join(home, ".claude", "skills"), "kb-query");
-    makeSkill(join(home, ".agent-knowledge", "skills"), "kb-init");
+    makeSkill(join(home, ".janet", "skills"), "kb-init");
 
     const mount = ensureSkillLinks(project);
-    const links = join(project, ".agent-knowledge", "skills");
+    const links = join(project, ".janet", "skills");
 
     for (const name of [
       "kb",
@@ -66,7 +66,7 @@ describe("ensureSkillLinks", () => {
     const project = join(root, "project");
     const home = join(root, "home");
     mkdirSync(home, { recursive: true });
-    const local = makeSkill(join(project, ".agent-knowledge", "skills"), "kb");
+    const local = makeSkill(join(project, ".janet", "skills"), "kb");
 
     const mount = ensureSkillLinks(project);
 

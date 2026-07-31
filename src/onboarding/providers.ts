@@ -64,9 +64,10 @@ export const NATIVE_PROVIDER_DEFINITIONS: readonly NativeProviderDefinition[] = 
     label: "Anthropic",
     envVars: ["ANTHROPIC_API_KEY"],
     fallbackModels: [
-      { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
-      { id: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
-      { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+      { id: "claude-fable-5", label: "Claude Fable 5" },
+      { id: "claude-opus-5", label: "Claude Opus 5" },
+      { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+      { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
     ],
   },
   {
@@ -157,6 +158,27 @@ export const CODEX_MODELS: ReadonlyArray<{ id: string; label: string }> = [
   { id: "gpt-5.5", label: "GPT-5.5" },
   { id: "gpt-5.4", label: "GPT-5.4" },
   { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+];
+
+/**
+ * Models offered through Anthropic subscription OAuth. The current Claude
+ * family leads the list, followed by still-supported Claude Code models.
+ * Manual ids remain available through `/model anthropic/<id>`.
+ */
+export const ANTHROPIC_OAUTH_MODELS: ReadonlyArray<{
+  id: string;
+  label: string;
+}> = [
+  { id: "claude-fable-5", label: "Claude Fable 5" },
+  { id: "claude-opus-5", label: "Claude Opus 5" },
+  { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+  { id: "claude-opus-4-8", label: "Claude Opus 4.8" },
+  { id: "claude-opus-4-7", label: "Claude Opus 4.7" },
+  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+  { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
+  { id: "claude-opus-4-5-20251101", label: "Claude Opus 4.5" },
+  { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
+  { id: "claude-sonnet-4-5-20250929", label: "Claude Sonnet 4.5" },
 ];
 
 const LEGACY_CODEX_MODEL_IDS: Readonly<Record<string, string>> = {
@@ -263,10 +285,13 @@ export function availableModels(): ModelChoice[] {
     }
     if (provider.id === "anthropic" && anthropicOAuth) {
       const via = "Anthropic (Claude Max)";
-      out.push(
-        { id: "anthropic/claude-opus-4-6", label: "Claude Opus 4.6", via },
-        { id: "anthropic/claude-sonnet-4-5", label: "Claude Sonnet 4.5", via },
-      );
+      for (const model of ANTHROPIC_OAUTH_MODELS) {
+        out.push({
+          id: `anthropic/${model.id}`,
+          label: model.label,
+          via,
+        });
+      }
     }
   }
 

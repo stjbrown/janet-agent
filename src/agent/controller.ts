@@ -5,9 +5,17 @@ import { createJanetAgent } from "./agent.js";
 import { createWorkspace } from "./workspace.js";
 import { ensureSkillLinks } from "./skills-paths.js";
 import { resolveProjectPaths, type ProjectPaths } from "./paths.js";
+import {
+  loadProjectInstructions,
+  type ProjectInstructions,
+} from "./project-instructions.js";
 import { createVertexGateway } from "../gateways/vertex.js";
 import { createBedrockGateway } from "../gateways/bedrock.js";
-import { JANET_ALWAYS_ALLOW_TOOL_RULES, janetToolCategory } from "./permissions.js";
+import {
+  JANET_ALWAYS_ALLOW_TOOL_RULES,
+  janetApprovalOverride,
+  janetToolCategory,
+} from "./permissions.js";
 import { attachHerdrReporter } from "../herdr/reporter.js";
 import { loadSettings } from "../onboarding/settings.js";
 import { resolveObservabilityConfig } from "../observability/config.js";
@@ -35,6 +43,8 @@ export interface JanetSessionBoot {
   controller: AgentController<JanetState>;
   session: Awaited<ReturnType<AgentController<JanetState>["createSession"]>>;
   paths: ProjectPaths;
+  /** Project-root JANET.md customization, when present and non-empty. */
+  projectInstructions?: ProjectInstructions;
   /** Detach the Herdr reporter and release the agent from the pane (no-op outside Herdr). */
   herdrDetach: () => void;
   observability: JanetObservabilityRuntime;
@@ -60,6 +70,34 @@ const stateSchema = z.object({
 });
 
 export type JanetState = z.infer<typeof stateSchema>;
+
+type ApprovalPolicy = "allow" | "ask" | "deny";
+
+interface ApprovalResolvingSession {
+  resolveToolApproval(toolName: string): ApprovalPolicy;
+}
+
+/**
+ * Mastra's session-wide yolo mode avoids provider resume churn for routine
+ * tools. A workspace write outside the selected bundle is the deliberate
+ * exception: its dynamic requireApproval decision must reach the TUI/headless
+ * handler instead of being auto-approved by yolo.
+ *
+ * AgentController's returned session has this runtime method but does not
+ * expose it in the public type. Mastra is pinned exactly and this seam is
+ * covered so an upstream change fails at boot rather than weakening approval.
+ */
+export function installJanetApprovalOverride(session: unknown): void {
+  const approvalSession = session as Partial<ApprovalResolvingSession>;
+  if (typeof approvalSession.resolveToolApproval !== "function") {
+    throw new Error(
+      "Installed Mastra controller does not expose the expected approval policy hook.",
+    );
+  }
+  const baseResolve = approvalSession.resolveToolApproval.bind(session);
+  approvalSession.resolveToolApproval = (toolName: string) =>
+    janetApprovalOverride(toolName) ?? baseResolve(toolName);
+}
 
 const MODES: AgentControllerMode[] = [{ id: "build", name: "Build" }];
 
@@ -101,6 +139,7 @@ export async function resumeThread(
  */
 export async function bootJanet(opts: BootOptions): Promise<JanetSessionBoot> {
   const paths = resolveProjectPaths({ dir: opts.dir, bundle: opts.bundle });
+  const projectInstructions = loadProjectInstructions(paths.projectPath);
   const observabilityConfig = resolveObservabilityConfig(loadSettings().observability);
   const observability = createObservabilityRuntime(
     paths.globalConfigDir,
@@ -108,7 +147,7 @@ export async function bootJanet(opts: BootOptions): Promise<JanetSessionBoot> {
   );
   const storage = observability.storage;
 
-  // Symlink the portable kb-* skills into <project>/.agent-knowledge/skills so
+  // Symlink the portable kb-* skills into <project>/.janet/skills so
   // the workspace can reference them by a RELATIVE path (Mastra requirement).
   const skills = ensureSkillLinks(paths.projectPath);
 
@@ -122,6 +161,7 @@ export async function bootJanet(opts: BootOptions): Promise<JanetSessionBoot> {
     storage,
     workspace,
     projectPath: paths.projectPath,
+    projectInstructions,
     executePolicy: rules.categories.execute,
   });
 
@@ -163,6 +203,7 @@ export async function bootJanet(opts: BootOptions): Promise<JanetSessionBoot> {
     resourceId: paths.resourceId,
     ownerId: paths.ownerId,
   });
+  installJanetApprovalOverride(session);
   // `switch` hydrates persisted settings and rebinds the stream; `set` only
   // changes the low-level binding and is not sufficient for a real resume.
   await resumeThread(session, opts.threadId);
@@ -170,5 +211,12 @@ export async function bootJanet(opts: BootOptions): Promise<JanetSessionBoot> {
   // Native Herdr reporting when running inside a Herdr pane (no-op otherwise).
   const herdrDetach = attachHerdrReporter(session, { projectPath: paths.projectPath });
 
-  return { controller, session, paths, herdrDetach, observability };
+  return {
+    controller,
+    session,
+    paths,
+    projectInstructions,
+    herdrDetach,
+    observability,
+  };
 }

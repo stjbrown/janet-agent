@@ -42,7 +42,7 @@ describe("workspace tool exposure", () => {
     const workspace = createWorkspace({
       projectPath: process.cwd(),
       skills: {
-        relativeRoot: ".agent-knowledge/skills",
+        relativeRoot: ".janet/skills",
         allowedPaths: [],
       },
     });

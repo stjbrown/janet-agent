@@ -1,6 +1,6 @@
 {
   "name": "janet-agent",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "description": "Janet builds and maintains portable LLM wikis in plain Markdown using OKF.",
   "keywords": [
     "agent",
@@ -26,8 +26,7 @@
   },
   "type": "module",
   "bin": {
-    "janet": "dist/main.js",
-    "ding": "dist/main.js"
+    "janet": "dist/main.js"
   },
   "files": [
     "dist",
@@ -40,6 +39,9 @@
   "engines": {
     "node": ">=22.13.0"
   },
+  "os": [
+    "darwin"
+  ],
   "scripts": {
     "sync:skills": "node scripts/sync-skills.mjs",
     "build": "pnpm sync:skills && tsup",

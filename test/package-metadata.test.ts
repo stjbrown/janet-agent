@@ -9,12 +9,14 @@ describe("published package metadata", () => {
       name: string;
       version: string;
       bin: Record<string, string>;
+      os: string[];
       devDependencies: Record<string, string>;
     };
 
     expect(metadata.name).toBe("janet-agent");
-    expect(metadata.version).toBe("0.1.0-beta.2");
-    expect(metadata.bin.janet).toBe(metadata.bin.ding);
+    expect(metadata.version).toBe("0.1.0-beta.3");
+    expect(metadata.bin).toEqual({ janet: "dist/main.js" });
+    expect(metadata.os).toEqual(["darwin"]);
     expect(metadata.devDependencies["@stjbrown/agent-knowledge-skills"]).toBe("0.2.0");
   });
 

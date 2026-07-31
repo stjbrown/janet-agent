@@ -78,7 +78,7 @@ describe("local web fetch tools", () => {
     expect(result.contentTrust).toBe("untrusted");
     expect(result.redirectCount).toBe(1);
     expect(result.artifactPath).toMatch(
-      /^\.agent-knowledge\/cache\/web\/[a-f0-9]{64}\.md$/,
+      /^\.janet\/cache\/web\/[a-f0-9]{64}\.md$/,
     );
     expect(persisted).toContain(articleText.trim());
     expect(persisted).toContain(

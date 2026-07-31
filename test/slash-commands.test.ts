@@ -26,6 +26,7 @@ describe("TUI slash commands", () => {
       expect(help).toContain(`/${command.name}`);
     }
     expect(help).toContain("/model [provider/id | forget provider/id]");
+    expect(help).toContain("/login [provider] [mode]");
     expect(help).toContain("/observability [status | off]");
   });
 });

@@ -5,7 +5,7 @@
  * (LocalFilesystem basePath) — absolute paths are rejected with "path is
  * outside the workspace". Janet's portable kb-* skills ship inside the npm
  * package, outside any user project, so we mount them into the project by
- * SYMLINKING each skill dir into `<project>/.agent-knowledge/skills/` and
+ * SYMLINKING each skill dir into `<project>/.janet/skills/` and
  * configuring the workspace with that relative root.
  *
  * Janet's bundled skill suite is authoritative. Generic project/user skill

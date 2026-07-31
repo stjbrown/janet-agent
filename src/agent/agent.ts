@@ -12,6 +12,10 @@ import { createWebTools } from "../tools/web/index.js";
 import { createExecuteTool } from "../tools/execute.js";
 import { guardWorkspaceDirectoryRead } from "../tools/workspace-read-guard.js";
 import { createJanetMemory } from "../memory/index.js";
+import {
+  composeJanetInstructions,
+  type ProjectInstructions,
+} from "./project-instructions.js";
 import { createSkillTurnGuard } from "./turn-guard.js";
 
 export interface JanetAgentOptions {
@@ -20,6 +24,8 @@ export interface JanetAgentOptions {
   workspace: Workspace;
   /** Absolute workspace root used to constrain Janet's local PDF tools. */
   projectPath: string;
+  /** Optional customization loaded only from <project>/JANET.md. */
+  projectInstructions?: ProjectInstructions;
   /** Shell policy fixed for this interactive or headless process. */
   executePolicy: "allow" | "ask" | "deny";
 }
@@ -44,7 +50,10 @@ export function createJanetAgent(opts: JanetAgentOptions): Agent {
   return new Agent({
     id: "janet",
     name: "Janet",
-    instructions: PERSONA_INSTRUCTIONS,
+    instructions: composeJanetInstructions(
+      PERSONA_INSTRUCTIONS,
+      opts.projectInstructions,
+    ),
     model: getDynamicModel,
     memory,
     workspace: opts.workspace,

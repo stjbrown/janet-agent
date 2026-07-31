@@ -13,7 +13,7 @@ export function guardWebWorkspaceRead(toolName: string, input: unknown) {
   const requestedPath = inputPath(input);
   if (!requestedPath) return;
   if (
-    /(?:^|\/)\.agent-knowledge\/cache\/web\/[a-f0-9]{64}\.md$/i.test(
+    /(?:^|\/)\.janet\/cache\/web\/[a-f0-9]{64}\.md$/i.test(
       requestedPath,
     )
   ) {

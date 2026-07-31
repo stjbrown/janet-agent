@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { LibSQLStore } from "@mastra/libsql";
 import { MastraCompositeStore } from "@mastra/core/storage";
-import { ensureDir } from "./paths.js";
+import { ensurePrivateDir } from "./paths.js";
 
 export interface JanetStorageOptions {
   localObservability?: {
@@ -59,7 +59,7 @@ export function createStorage(
   globalConfigDir: string,
   options: JanetStorageOptions = {},
 ): MastraCompositeStore {
-  ensureDir(globalConfigDir);
+  ensurePrivateDir(globalConfigDir);
   const threadStore = new LibSQLStore({
     id: "agent-knowledge-threads",
     url: `file:${join(globalConfigDir, "threads.db")}`,

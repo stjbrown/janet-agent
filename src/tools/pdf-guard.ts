@@ -19,7 +19,7 @@ export function guardPdfWorkspaceRead(toolName: string, input: unknown) {
     return { proceed: false as const, output: PDF_READER_MESSAGE };
   }
   if (
-    /(?:^|\/)\.agent-knowledge\/cache\/pdf\/[a-f0-9]{64}\.md$/i.test(
+    /(?:^|\/)\.janet\/cache\/pdf\/[a-f0-9]{64}\.md$/i.test(
       requestedPath,
     )
   ) {

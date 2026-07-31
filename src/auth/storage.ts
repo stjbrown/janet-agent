@@ -3,9 +3,9 @@
  * Handles loading, saving, and refreshing credentials from auth.json.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { appDataDir as getAppDataDir } from '../agent/paths.js';
+import { appDataDir as getAppDataDir, ensurePrivateDir } from '../agent/paths.js';
 import { anthropicOAuthProvider } from './providers/anthropic.js';
 import { openaiCodexOAuthProvider } from './providers/openai-codex.js';
 import type {
@@ -75,10 +75,11 @@ export class AuthStorage {
    */
   private save(): void {
     const dir = dirname(this.authPath);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true, mode: 0o700 });
-    }
-    writeFileSync(this.authPath, JSON.stringify(this.data, null, 2), 'utf-8');
+    ensurePrivateDir(dir);
+    writeFileSync(this.authPath, JSON.stringify(this.data, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600,
+    });
     chmodSync(this.authPath, 0o600);
   }
 

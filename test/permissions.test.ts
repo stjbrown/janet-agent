@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { permissionRulesFor, resumeThread } from "../src/agent/controller.js";
-import { janetToolCategory } from "../src/agent/permissions.js";
+import {
+  installJanetApprovalOverride,
+  permissionRulesFor,
+  resumeThread,
+} from "../src/agent/controller.js";
+import {
+  janetApprovalOverride,
+  janetToolCategory,
+} from "../src/agent/permissions.js";
 
 describe("Janet permission policy", () => {
   it("fails closed for read-only headless runs", () => {
@@ -55,6 +62,36 @@ describe("Janet permission policy", () => {
 
   it("classifies observational-memory recall as a read operation", () => {
     expect(janetToolCategory("recall")).toBe("read");
+  });
+
+  it("lets path-sensitive workspace writes escape yolo auto-approval", () => {
+    for (const toolName of [
+      "mastra_workspace_write_file",
+      "mastra_workspace_edit_file",
+      "mastra_workspace_delete",
+      "mastra_workspace_mkdir",
+      "mastra_workspace_ast_edit",
+    ]) {
+      expect(janetApprovalOverride(toolName)).toBe("ask");
+    }
+    expect(janetApprovalOverride("mastra_workspace_read_file")).toBeUndefined();
+    expect(janetApprovalOverride("skill")).toBeUndefined();
+  });
+
+  it("installs the path override without changing ordinary session policy", () => {
+    const session = {
+      resolveToolApproval: vi.fn((_toolName: string) => "allow" as const),
+    };
+    installJanetApprovalOverride(session);
+
+    expect(session.resolveToolApproval("mastra_workspace_write_file")).toBe("ask");
+    expect(session.resolveToolApproval("mastra_workspace_read_file")).toBe("allow");
+  });
+
+  it("fails closed when Mastra's pinned approval seam changes", () => {
+    expect(() => installJanetApprovalOverride({})).toThrow(
+      /expected approval policy hook/,
+    );
   });
 });
 

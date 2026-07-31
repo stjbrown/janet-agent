@@ -23,7 +23,7 @@ startup:
 session.sendMessage
   -> Mastra tracing options
   -> Mastra Observability
-     -> local Mastra storage exporter -> ~/.agent-knowledge/observability.db
+     -> local Mastra storage exporter -> ~/.janet/observability.db
      -> generic OTLP exporter         -> Phoenix or another OTLP backend
 ```
 
@@ -85,7 +85,7 @@ The TUI is the primary interactive setup:
 /traces
 ```
 
-The TUI persists only nonsecret preferences in `~/.agent-knowledge/settings.json`. Changes apply
+The TUI persists only nonsecret preferences in `~/.janet/settings.json`. Changes apply
 after restart so a process never has two competing observability lifecycles.
 
 Environment variables override saved settings for headless runs and automation:

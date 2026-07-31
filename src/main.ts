@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { loadSettings } from "./onboarding/settings.js";
 import { availableModels, normalizeModelSelection } from "./onboarding/providers.js";
-import { parseArgs } from "./headless/flags.js";
+import { parseArgs, validateInvocation } from "./headless/flags.js";
 import { runHeadless } from "./headless/run.js";
 import {
   buildDirective,
@@ -9,7 +9,7 @@ import {
   headlessCapabilities,
   isSubcommand,
 } from "./commands.js";
-import { resolveProjectPaths } from "./agent/paths.js";
+import { prepareAppDataDir, resolveProjectPaths } from "./agent/paths.js";
 import { GREETING } from "./agent/persona.js";
 import { packageVersion } from "./version.js";
 import { formatConformanceReport, runConformanceCheck } from "./conformance.js";
@@ -32,9 +32,7 @@ Options:
       --thread <id>          Resume a thread
       --allow-exec           Allow shell commands in a one-shot run
   -h, --help                 Show this help
-  -v, --version              Show version
-
-Also installed as \`ding\` (you summon Janet with a ding).`;
+  -v, --version              Show version`;
 
 function resolveModelId(values: Record<string, string>): string | undefined {
   const selected =
@@ -47,6 +45,14 @@ function resolveModelId(values: Record<string, string>): string | undefined {
 
 async function main(argv: string[]): Promise<number> {
   const parsed = parseArgs(argv);
+  const argumentErrors = validateInvocation(parsed);
+  if (argumentErrors.length) {
+    process.stderr.write(
+      argumentErrors.map((error) => `Usage error: ${error}`).join("\n") +
+        "\nTry `janet --help`.\n",
+    );
+    return 2;
+  }
 
   if (parsed.flags.has("help") || parsed.subcommand === "help") {
     process.stdout.write(HELP + "\n");
@@ -56,6 +62,8 @@ async function main(argv: string[]): Promise<number> {
     process.stdout.write(packageVersion() + "\n");
     return 0;
   }
+
+  prepareAppDataDir();
 
   const dir = parsed.values["dir"];
   const bundleOverride = parsed.values["bundle"];
@@ -142,5 +150,5 @@ main(process.argv.slice(2))
   .then((code) => process.exit(code))
   .catch((err) => {
     process.stderr.write(`\nJanet hit a snag: ${err?.message ?? err}\n`);
-    process.exit(1);
+    process.exit(2);
   });

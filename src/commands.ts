@@ -58,7 +58,7 @@ export function buildDirective(cmd: SubcommandName, ctx: DirectiveContext): stri
     }
     case "viz": {
       const scope = ctx.args.join(" ").trim();
-      return `Load and follow the kb-visualize skill to render the bundle at ${bundle} as a graph${scope ? ` scoped to: ${scope}` : ""}. Write a self-contained HTML file next to the bundle and give the path.`;
+      return `Load and follow the kb-visualize skill to render the bundle at ${bundle} as a graph${scope ? ` scoped to: ${scope}` : ""}. Write the self-contained HTML artifact inside ${bundle}/.janet/ and give the path.`;
     }
   }
 }

@@ -1,6 +1,6 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { appDataDir } from "../agent/paths.js";
+import { appDataDir, ensurePrivateDir } from "../agent/paths.js";
 import { normalizeObservabilitySettings } from "../observability/config.js";
 import type { ObservabilitySettings } from "../observability/types.js";
 
@@ -63,8 +63,12 @@ export function loadSettings(): JanetSettings {
 
 export function saveSettings(settings: JanetSettings): void {
   const p = settingsPath();
-  mkdirSync(dirname(p), { recursive: true });
-  writeFileSync(p, JSON.stringify(settings, null, 2) + "\n", "utf-8");
+  ensurePrivateDir(dirname(p));
+  writeFileSync(p, JSON.stringify(settings, null, 2) + "\n", {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
+  chmodSync(p, 0o600);
 }
 
 /** Persist the chosen model and mark onboarding complete. */

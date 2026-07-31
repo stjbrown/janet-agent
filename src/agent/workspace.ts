@@ -6,6 +6,7 @@ import {
 } from "@mastra/core/workspace";
 import type { ToolConfigContext } from "@mastra/core/workspace";
 import type { SkillMount } from "./skills-paths.js";
+import { workspaceWriteRequiresApproval } from "./workspace-write-approval.js";
 
 export interface WorkspaceOptions {
   /** The project dir Janet operates on (cwd); where `knowledge/` lives. */
@@ -78,25 +79,25 @@ export function createWorkspace(opts: WorkspaceOptions): Workspace {
       },
       [WORKSPACE_TOOLS.FILESYSTEM.WRITE_FILE]: {
         enabled: editToolsEnabled,
-        requireApproval: false,
+        requireApproval: workspaceWriteRequiresApproval,
         requireReadBeforeWrite: true,
       },
       [WORKSPACE_TOOLS.FILESYSTEM.EDIT_FILE]: {
         enabled: editToolsEnabled,
-        requireApproval: false,
+        requireApproval: workspaceWriteRequiresApproval,
         requireReadBeforeWrite: true,
       },
       [WORKSPACE_TOOLS.FILESYSTEM.DELETE]: {
         enabled: editToolsEnabled,
-        requireApproval: false,
+        requireApproval: workspaceWriteRequiresApproval,
       },
       [WORKSPACE_TOOLS.FILESYSTEM.MKDIR]: {
         enabled: editToolsEnabled,
-        requireApproval: false,
+        requireApproval: workspaceWriteRequiresApproval,
       },
       [WORKSPACE_TOOLS.FILESYSTEM.AST_EDIT]: {
         enabled: editToolsEnabled,
-        requireApproval: false,
+        requireApproval: workspaceWriteRequiresApproval,
       },
       [WORKSPACE_TOOLS.SEARCH.SEARCH]: {
         enabled: true,

@@ -82,7 +82,7 @@ describe("local PDF tools", () => {
     expect(result.pageCount).toBe(1);
     expect(result.text).toContain(sourceText);
     expect(result.artifactPath).toMatch(
-      /^\.agent-knowledge\/cache\/pdf\/[a-f0-9]{64}\.md$/,
+      /^\.janet\/cache\/pdf\/[a-f0-9]{64}\.md$/,
     );
     expect(readFileSync(join(projectPath, result.artifactPath), "utf8")).toContain(
       sourceText,

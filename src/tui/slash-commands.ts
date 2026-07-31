@@ -10,8 +10,8 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: "providers", description: "Browse provider status and setup" },
   {
     name: "login",
-    argumentHint: "<provider> [mode]",
-    description: "Log in; OpenAI mode is browser or device",
+    argumentHint: "[provider] [mode]",
+    description: "Choose a provider and log in; OpenAI mode is browser or device",
   },
   {
     name: "logout",

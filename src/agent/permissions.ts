@@ -22,6 +22,25 @@ const ALWAYS_ALLOW = new Set([
   "submit_plan",
 ]);
 
+/**
+ * These tools can request path-sensitive approval from the workspace. Janet's
+ * controller keeps ordinary tools in yolo compatibility mode, but must not
+ * auto-approve these requests when their target is outside the bundle.
+ */
+export const JANET_PATH_APPROVAL_TOOLS = new Set([
+  "mastra_workspace_write_file",
+  "mastra_workspace_edit_file",
+  "mastra_workspace_delete",
+  "mastra_workspace_mkdir",
+  "mastra_workspace_ast_edit",
+]);
+
+export function janetApprovalOverride(
+  toolName: string,
+): "ask" | undefined {
+  return JANET_PATH_APPROVAL_TOOLS.has(toolName) ? "ask" : undefined;
+}
+
 export const JANET_ALWAYS_ALLOW_TOOL_RULES = Object.fromEntries(
   [...ALWAYS_ALLOW].map((toolName) => [toolName, "allow" as const]),
 ) as Record<string, "allow">;

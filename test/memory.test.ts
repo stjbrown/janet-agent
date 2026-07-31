@@ -74,6 +74,9 @@ describe("Janet observational memory", () => {
   });
 
   it("resolves the provider-aware default through Janet's auth path", () => {
+    // Keep the unit test independent of whichever OAuth credentials the
+    // developer has stored in ~/.janet.
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
     const requestContext = requestContextFor("openai/gpt-5.6-sol");
     expect(
       getJanetMemoryModel("observer", {

@@ -34,7 +34,7 @@ _ingest_plan.md
 skills/
 
 # janet project-local config (thread scope, skill symlinks)
-.agent-knowledge/
+.janet/
 
 # vitest snapshots scratch
 *.tsbuildinfo

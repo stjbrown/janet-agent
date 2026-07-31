@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { commandExitCode, headlessCapabilities } from "../src/commands.js";
+import {
+  buildDirective,
+  commandExitCode,
+  headlessCapabilities,
+} from "../src/commands.js";
 
 describe("commandExitCode", () => {
   it("preserves deterministic lint failures", () => {
@@ -33,5 +37,17 @@ describe("headlessCapabilities", () => {
       allowEdits: true,
       allowExec: false,
     });
+  });
+});
+
+describe("buildDirective", () => {
+  it("keeps visualization artifacts inside the approved bundle boundary", () => {
+    expect(
+      buildDirective("viz", {
+        bundlePath: "/project/docs/kb",
+        args: [],
+        flags: new Set(),
+      }),
+    ).toContain("inside /project/docs/kb/.janet/");
   });
 });

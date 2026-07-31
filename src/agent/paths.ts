@@ -1,12 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, renameSync } from "node:fs";
 import { homedir, hostname } from "node:os";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 /** App-data dir name (global + project-local). */
-export const CONFIG_DIR_NAME = ".agent-knowledge";
+export const CONFIG_DIR_NAME = ".janet";
+export const LEGACY_CONFIG_DIR_NAME = ".agent-knowledge";
 
 /** Bundle convention: `<project>/knowledge/`. */
 export const BUNDLE_DIR_NAME = "knowledge";
@@ -16,9 +17,9 @@ export interface ProjectPaths {
   projectPath: string;
   /** Default bundle location within the project. */
   bundlePath: string;
-  /** Global app-data dir (~/.agent-knowledge) — auth + settings + threads db. */
+  /** Global app-data dir (~/.janet) — auth + settings + threads db. */
   globalConfigDir: string;
-  /** Project-local config dir (<project>/.agent-knowledge). */
+  /** Project-local config dir (<project>/.janet). */
   projectConfigDir: string;
   /** Stable per-project id: git remote if present, else absolute project path. */
   resourceId: string;
@@ -89,8 +90,52 @@ export function ensureDir(dir: string): string {
   return dir;
 }
 
+/** Create or tighten a directory that contains Janet's machine-local private state. */
+export function ensurePrivateDir(dir: string): string {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
+  chmodSync(dir, 0o700);
+  return dir;
+}
+
 /**
- * The global (machine-wide) app-data dir, `~/.agent-knowledge`. Credentials
+ * Move Janet's pre-beta global state to its final name when doing so cannot
+ * overwrite anything. If both locations exist, preserve both and use `.janet`.
+ */
+export function migrateLegacyAppDataDir(home: string = homedir()): boolean {
+  const legacy = join(home, LEGACY_CONFIG_DIR_NAME);
+  const current = join(home, CONFIG_DIR_NAME);
+  if (!existsSync(legacy) || existsSync(current)) return false;
+  renameSync(legacy, current);
+  ensurePrivateDir(current);
+  return true;
+}
+
+/**
+ * Prepare Janet's global state before reading it. The containing directory is
+ * private, and known credential/settings/database files are private even when
+ * carried forward from an older beta.
+ */
+export function prepareAppDataDir(home: string = homedir()): boolean {
+  const migrated = migrateLegacyAppDataDir(home);
+  const current = ensurePrivateDir(join(home, CONFIG_DIR_NAME));
+  for (const name of [
+    "auth.json",
+    "settings.json",
+    "threads.db",
+    "threads.db-wal",
+    "threads.db-shm",
+    "observability.db",
+    "observability.db-wal",
+    "observability.db-shm",
+  ]) {
+    const path = join(current, name);
+    if (existsSync(path)) chmodSync(path, 0o600);
+  }
+  return migrated;
+}
+
+/**
+ * The global (machine-wide) app-data dir, `~/.janet`. Credentials
  * (auth.json) and settings live here since they are not project-specific.
  */
 export function appDataDir(): string {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ANTHROPIC_OAUTH_MODELS,
   CODEX_MODELS,
   NATIVE_PROVIDER_DEFINITIONS,
   availableModels,
@@ -11,6 +12,23 @@ import {
   type ModelChoice,
 } from "../src/onboarding/providers.js";
 import { VERTEX_MODELS } from "../src/gateways/vertex.js";
+
+describe("Anthropic OAuth model selection", () => {
+  it("offers the current Claude family and supported legacy models", () => {
+    expect(ANTHROPIC_OAUTH_MODELS.map((model) => model.id)).toEqual([
+      "claude-fable-5",
+      "claude-opus-5",
+      "claude-sonnet-5",
+      "claude-opus-4-8",
+      "claude-opus-4-7",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6",
+      "claude-opus-4-5-20251101",
+      "claude-haiku-4-5-20251001",
+      "claude-sonnet-4-5-20250929",
+    ]);
+  });
+});
 
 const codexChoices: ModelChoice[] = CODEX_MODELS.map((model) => ({
   id: `openai/${model.id}`,

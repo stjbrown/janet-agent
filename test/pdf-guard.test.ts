@@ -17,7 +17,7 @@ describe("PDF workspace read guard", () => {
     const hash = "a".repeat(64);
     expect(
       guardPdfWorkspaceRead("mastra_workspace_read_file", {
-        path: `.agent-knowledge/cache/pdf/${hash}.md`,
+        path: `.janet/cache/pdf/${hash}.md`,
       }),
     ).toEqual({
       proceed: false,

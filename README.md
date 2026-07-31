@@ -8,7 +8,34 @@ given with `-C`. Its knowledge bundle defaults to `knowledge/`, but `--bundle <p
 another directory inside that project. Conversation history stays scoped to the project. The
 knowledge remains open, diffable, and usable without Janet.
 
-> Janet is prerelease software. The current npm release is `0.1.0-beta.2` under the `next` tag.
+> Janet is prerelease software. The current release candidate is `0.1.0-beta.3`; published previews
+> use the `next` tag.
+> This beta is supported and tested on macOS only.
+
+## Project instructions
+
+Add a `JANET.md` file at the root of the selected project to customize how Janet works there:
+
+```markdown
+# Role
+
+Act as a competitive-intelligence expert for this project.
+
+# Priorities
+
+- Separate verified facts from inference.
+- Track competitor positioning, pricing, and product changes.
+- Prefer concise comparison tables when several companies are involved.
+```
+
+Janet loads only the exact project-root `JANET.md` selected by the current directory or `-C`.
+She never treats `AGENTS.md`, `CLAUDE.md`, source files, or fetched content as instructions. Those
+remain repository data. Project instructions can customize expertise, priorities, terminology,
+outputs, and conversational style, but cannot override Janet's safety rules, tool permissions,
+knowledge trust model, bundle write boundaries, or active skill procedures.
+
+`JANET.md` must be a regular UTF-8 file no larger than 64 KiB. It is not part of the knowledge bundle
+and is not used as repository evidence unless you explicitly ask Janet to document it.
 
 ## Install
 
@@ -25,9 +52,8 @@ npm install --global janet-agent@next
 janet
 ```
 
-The package provides both `janet` and `ding` because you summon Janet with a ding.
-
-Node.js 22.13 or newer is required.
+macOS and Node.js 22.13 or newer are required for this beta. npm rejects installation on other
+operating systems.
 
 ### Migrating from the former package
 
@@ -55,8 +81,9 @@ and ask:
 Document this repository's architecture and developer workflows.
 ```
 
-Janet reads source, tests, configuration, and approved read-only Git evidence in place; only the
-selected knowledge bundle is modified.
+Janet reads source, tests, configuration, and approved read-only Git evidence in place. Writes
+inside the selected knowledge bundle proceed without interruption; a write anywhere else in the
+selected project requires your approval.
 
 Use `-C <directory>` to select a project and `--bundle <path>` to select a bundle inside it. The
 bundle path may be relative to the selected project or an absolute path within it:
@@ -69,8 +96,9 @@ janet -C /path/to/project --bundle docs/project-kb query "what do we know?"
 Janet rejects bundle paths outside the selected project.
 
 Add `-p` (or pipe/redirect output) for headless one-shot mode. Headless query and ordinary lint
-runs are read-only. Init, ingest, visualize, and `lint --fix` may edit the workspace. Shell
-commands and Git commits require explicit `--allow-exec`.
+runs are read-only. Init, ingest, visualize, and `lint --fix` may edit the selected bundle. A
+headless write outside that bundle is declined because there is no interactive approval prompt.
+Shell commands and Git commits require explicit `--allow-exec`.
 
 `janet lint` always starts with the deterministic, token-free OKF checker shipped in the package.
 With no model configured it stops after that check, making it useful as a CI gate:
@@ -79,7 +107,8 @@ With no model configured it stops after that check, making it useful as a CI gat
 janet -C ./my-project lint
 ```
 
-Exit status is `0` for conformant, `1` for nonconformant, and `2` for an operational failure.
+For every command, exit status is `0` for success, `1` for a task or conformance failure, and `2`
+for invalid usage, configuration, or another operational failure.
 
 ## Interactive commands
 
@@ -87,7 +116,7 @@ Exit status is `0` for conformant, `1` for nonconformant, and `2` for an operati
 | --- | --- |
 | `/models` · `/model [id]` | Choose or switch the model |
 | `/providers` | Show detected providers and their configuration variables |
-| `/login <anthropic\|openai-codex> [browser\|device]` | Sign in with a supported subscription |
+| `/login [anthropic\|openai-codex] [browser\|device]` | Choose and sign in to a supported subscription |
 | `/logout` · `/auth` | Manage authentication |
 | `/observability` · `/traces` | Configure opt-in tracing and inspect local history |
 | `/compact` | Compact the current conversation into observations |
@@ -107,9 +136,10 @@ Vertex AI and Amazon Bedrock use dedicated cloud gateways. OpenAI and Anthropic 
 ChatGPT/Codex and Claude Max subscription OAuth. An explicitly exported API key takes precedence
 over stored OAuth for that process.
 
-Credentials, settings, threads, caches, and local traces retain the existing
-`~/.agent-knowledge/` storage layout. Project-local state remains under
-`<project>/.agent-knowledge/`.
+Credentials, settings, threads, caches, and local traces use
+`~/.janet/`. Project-local state lives under
+`<project>/.janet/`. On first beta.3 launch, Janet moves the old global
+`~/.agent-knowledge/` directory only when `~/.janet/` does not already exist.
 
 ## Memory
 

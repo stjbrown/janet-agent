@@ -6,7 +6,7 @@ describe("web workspace read guard", () => {
     const hash = "a".repeat(64);
     expect(
       guardWebWorkspaceRead("mastra_workspace_read_file", {
-        path: `.agent-knowledge/cache/web/${hash}.md`,
+        path: `.janet/cache/web/${hash}.md`,
       }),
     ).toEqual({
       proceed: false,
@@ -22,7 +22,7 @@ describe("web workspace read guard", () => {
     ).toBeUndefined();
     expect(
       guardWebWorkspaceRead("mastra_workspace_file_stat", {
-        path: `.agent-knowledge/cache/web/${"a".repeat(64)}.md`,
+        path: `.janet/cache/web/${"a".repeat(64)}.md`,
       }),
     ).toBeUndefined();
   });
