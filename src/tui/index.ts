@@ -7,9 +7,10 @@
  * whole answer streaming at the top while tools pile up underneath).
  *
  * Approvals are governed by the controller's tool-category policy: reads,
- * skills, task bookkeeping, ask_user, and bundle edits never prompt. Execution,
- * MCP, and unknown future tools ask — and the prompt offers "always allow" for
- * the session. Questions with options render as an arrow-key SelectList.
+ * skills, task bookkeeping, ask_user, and selected-bundle edits never prompt.
+ * Writes outside the selected bundle, execution, MCP, and unknown future tools
+ * ask — and the prompt offers "always allow" for the session. Questions with
+ * options render as an arrow-key SelectList.
  */
 import {
   CombinedAutocompleteProvider,
@@ -64,6 +65,7 @@ import { compactConversation } from "../memory/compact.js";
 import { toolActivityLabel, toolErrorLabel } from "./activity.js";
 import { createInterruptController, type InterruptResult } from "./interrupt.js";
 import { MultiSelectList } from "./multi-select.js";
+import { nextUnhandledSuspension } from "./pending-suspension.js";
 import { SLASH_COMMANDS, slashCommandHelp } from "./slash-commands.js";
 import { clearConversation } from "./thread.js";
 import { formatTraceTree, traceStatus } from "./traces.js";
@@ -152,8 +154,9 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
   });
 
   // The interactive approval policy is set deterministically in the controller's
-  // initialState (reads/edits/meta never prompt; only execute asks, with an
-  // "always allow" option) — see INTERACTIVE_RULES in controller.ts.
+  // initialState (reads/meta and selected-bundle edits never prompt; execution
+  // and outside-bundle edits ask, with an "always allow" option) — see
+  // INTERACTIVE_RULES in controller.ts and workspace-write-approval.ts.
 
   // Model precedence: an already-persisted per-thread selection, else
   // JANET_MODEL, else the global onboarding default. If none, the first-run
@@ -316,6 +319,130 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
     if (q) void session.respondToToolSuspension({ toolCallId: q.toolCallId, resumeData });
   };
 
+  /**
+   * Surface a native Mastra tool approval and park the editor on its response.
+   *
+   * Mastra keeps the approval in displayState as well as emitting the transient
+   * tool_approval_required event. Accept both paths so a UI listener hiccup
+   * cannot leave the run invisibly parked until Mastra's approval timeout.
+   */
+  const showToolApproval = ({
+    toolCallId,
+    toolName,
+    args,
+  }: {
+    toolCallId: string;
+    toolName: string;
+    args: unknown;
+  }): void => {
+    if (pendingApproval?.toolCallId === toolCallId) return;
+    closeSegment();
+    activeTools.delete(toolCallId);
+    pendingApproval = {
+      toolCallId,
+      toolName,
+      suspension: false,
+    };
+    setLoader(false);
+    if (activeSelect) {
+      chat.removeChild(activeSelect);
+      activeSelect = null;
+    }
+    ui.setFocus(editor);
+    const target = workspaceWriteTarget(args);
+    addLine(
+      c.warn(
+        target
+          ? `  Janet wants to write outside the selected bundle: ${c.bold(target)}`
+          : `  Janet wants to run ${c.bold(toolName)}.`,
+      ) + c.dim("  y = yes · n = no · a = always allow this kind"),
+    );
+    updateStatus();
+  };
+
+  /** Surface a tool suspension, including one recovered from display state. */
+  const showToolSuspension = ({
+    toolCallId,
+    toolName,
+    suspendPayload,
+  }: {
+    toolCallId: string;
+    toolName: string;
+    suspendPayload: unknown;
+  }): void => {
+    if (pendingApproval?.toolCallId === toolCallId || pendingQuestion?.toolCallId === toolCallId) {
+      return;
+    }
+    // The current TUI accepts one interactive response at a time. Leave any
+    // additional suspension in canonical display state; it will be recovered
+    // after the first response changes that state.
+    if (pendingApproval || pendingQuestion || activeSelect) return;
+
+    closeSegment();
+    activeTools.delete(toolCallId);
+    setLoader(false);
+    const payload = suspendPayload as {
+      kind?: string;
+      command?: string;
+      question?: string;
+      options?: QuestionOption[];
+      selectionMode?: string;
+    };
+    if (payload?.kind === "command_approval") {
+      pendingApproval = {
+        toolCallId,
+        toolName,
+        suspension: true,
+      };
+      addLine(
+        c.warn("  Janet wants to run: ") +
+          c.bold(payload.command ?? "(unknown command)"),
+      );
+      addLine(c.dim("     y = yes · n = no · a = always allow commands this session"));
+      ui.setFocus(editor);
+      updateStatus();
+      return;
+    }
+
+    const question = payload?.question ?? `Janet needs input for ${toolName}.`;
+    const options = payload?.options;
+    const multi = payload?.selectionMode === "multi_select";
+    addLine(c.accentBold(`  Janet asks: ${question}`));
+
+    if (options?.length && !multi) {
+      // Arrow-key selection (↑/↓, enter), like a native picker.
+      const items: SelectItem[] = options.map((o) => ({
+        value: o.label,
+        label: o.label,
+        ...(o.description ? { description: o.description } : {}),
+      }));
+      const select = new SelectList(items, Math.min(items.length, 8), editorTheme.selectList);
+      select.onSelect = (item: SelectItem) => answerQuestion(item.value, item.label);
+      select.onCancel = () => {
+        closeActiveSelect(select);
+        addLine(c.dim("     Picker closed. Type your answer instead."));
+        updateStatus();
+      };
+      activeSelect = select;
+      pendingQuestion = { toolCallId, options, multi: false };
+      chat.addChild(select);
+      addLine(c.dim("     Use ↑/↓ and Enter · Esc to close."));
+      ui.setFocus(select);
+    } else {
+      pendingQuestion = { toolCallId, options, multi };
+      if (options?.length) {
+        options.forEach((o, i) =>
+          addLine(c.accent(`     ${i + 1}. `) + o.label + (o.description ? c.dim(` — ${o.description}`) : "")),
+        );
+        addLine(c.dim("     Reply with numbers or labels, then press Enter."));
+      } else {
+        addLine(c.dim("     Type your answer, then press Enter."));
+      }
+      ui.setFocus(editor);
+    }
+    updateStatus();
+  };
+
   const onEvent = (event: AgentControllerEvent): void => {
     switch (event.type) {
       case "agent_start":
@@ -367,88 +494,26 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
         }
         break;
       case "tool_suspended": {
-        closeSegment();
-        activeTools.delete(event.toolCallId);
-        setLoader(false);
-        const payload = event.suspendPayload as {
-          kind?: string;
-          command?: string;
-          question?: string;
-          options?: QuestionOption[];
-          selectionMode?: string;
-        };
-        if (payload?.kind === "command_approval") {
-          pendingApproval = {
-            toolCallId: event.toolCallId,
-            toolName: event.toolName,
-            suspension: true,
-          };
-          addLine(
-            c.warn("  Janet wants to run: ") +
-              c.bold(payload.command ?? "(unknown command)"),
-          );
-          addLine(c.dim("     y = yes · n = no · a = always allow commands this session"));
-          updateStatus();
-          break;
-        }
-        const question = payload?.question ?? `Janet needs input for ${event.toolName}.`;
-        const options = payload?.options;
-        const multi = payload?.selectionMode === "multi_select";
-        addLine(c.accentBold(`  Janet asks: ${question}`));
-
-        if (options?.length && !multi) {
-          // Arrow-key selection (↑/↓, enter), like a native picker.
-          const items: SelectItem[] = options.map((o) => ({
-            value: o.label,
-            label: o.label,
-            ...(o.description ? { description: o.description } : {}),
-          }));
-          const select = new SelectList(items, Math.min(items.length, 8), editorTheme.selectList);
-          select.onSelect = (item: SelectItem) => answerQuestion(item.value, item.label);
-          select.onCancel = () => {
-            closeActiveSelect(select);
-            addLine(c.dim("     Picker closed. Type your answer instead."));
-            updateStatus();
-          };
-          activeSelect = select;
-          pendingQuestion = { toolCallId: event.toolCallId, options, multi: false };
-          chat.addChild(select);
-          addLine(c.dim("     Use ↑/↓ and Enter · Esc to close."));
-          ui.setFocus(select);
-        } else {
-          pendingQuestion = { toolCallId: event.toolCallId, options, multi };
-          if (options?.length) {
-            options.forEach((o, i) =>
-              addLine(c.accent(`     ${i + 1}. `) + o.label + (o.description ? c.dim(` — ${o.description}`) : "")),
-            );
-            addLine(c.dim("     Reply with numbers or labels, then press Enter."));
-          } else {
-            addLine(c.dim("     Type your answer, then press Enter."));
-          }
-        }
-        updateStatus();
+        showToolSuspension(event);
         break;
       }
       case "tool_approval_required":
-        closeSegment();
-        activeTools.delete(event.toolCallId);
-        pendingApproval = {
-          toolCallId: event.toolCallId,
-          toolName: event.toolName,
-          suspension: false,
-        };
-        {
-          const target = workspaceWriteTarget(event.args);
-          addLine(
-            c.warn(
-              target
-                ? `  Janet wants to write outside the selected bundle: ${c.bold(target)}`
-                : `  Janet wants to run ${c.bold(event.toolName)}.`,
-            ) + c.dim("  y = yes · n = no · a = always allow this kind"),
-          );
-        }
-        updateStatus();
+        showToolApproval(event);
         break;
+      case "display_state_changed": {
+        if (event.displayState.pendingApproval) {
+          showToolApproval(event.displayState.pendingApproval);
+        }
+        const handled = new Set<string>();
+        if (pendingApproval) handled.add(pendingApproval.toolCallId);
+        if (pendingQuestion) handled.add(pendingQuestion.toolCallId);
+        const suspension = nextUnhandledSuspension(
+          event.displayState.pendingSuspensions,
+          handled,
+        );
+        if (suspension) showToolSuspension(suspension);
+        break;
+      }
       case "error": {
         closeSegment();
         const err = event.error as Error & { responseBody?: string };
@@ -516,9 +581,12 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
       case "agent_end":
         running = false;
         cancelRequested = false;
+        if (event.reason !== "suspended") {
+          pendingApproval = null;
+          pendingQuestion = null;
+        }
         activeTools.clear();
         loader.setMessage("Janet is thinking…");
-        if (event.reason !== "suspended") pendingQuestion = null;
         setLoader(false);
         updateStatus();
         break;
