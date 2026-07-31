@@ -6,7 +6,7 @@ minimumReleaseAgeExclude:
   - '@ai-sdk/google-vertex@4.0.173 || 4.0.174'
   - '@ai-sdk/google@3.0.102 || 3.0.103'
   - '@ai-sdk/openai@3.0.89 || 3.0.90'
-  - '@stjbrown/agent-knowledge-skills@0.2.0'
+  - '@stjbrown/agent-knowledge-skills@0.2.0 || 0.3.0'
   - '@ai-sdk/anthropic@3.0.104'
   - '@ai-sdk/gateway@3.0.160'
   - '@ai-sdk/openai-compatible@2.0.63'
