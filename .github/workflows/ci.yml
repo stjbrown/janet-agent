@@ -41,11 +41,15 @@ jobs:
           tar tzf "$tarball" | grep -q 'package/NOTICE'
 
           node -e '
+            const fs = require("node:fs");
             const p = require("./package.json");
             if (p.name !== "janet-agent") process.exit(1);
             if (JSON.stringify(p.bin) !== JSON.stringify({ janet: "dist/main.js" })) process.exit(1);
             if (JSON.stringify(p.os) !== JSON.stringify(["darwin"])) process.exit(1);
-            if (p.devDependencies["@stjbrown/agent-knowledge-skills"] !== "0.2.0") process.exit(1);
+            const skillsVersion = p.devDependencies["@stjbrown/agent-knowledge-skills"];
+            if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(skillsVersion)) process.exit(1);
+            const kbSkill = fs.readFileSync("skills/kb/SKILL.md", "utf8");
+            if (!kbSkill.includes(`\nversion: ${skillsVersion}\n`)) process.exit(1);
           '
 
           mkdir -p "$RUNNER_TEMP/janet-package-smoke"
