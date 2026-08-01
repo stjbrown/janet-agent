@@ -14,10 +14,10 @@ describe("published package metadata", () => {
     };
 
     expect(metadata.name).toBe("janet-agent");
-    expect(metadata.version).toBe("0.1.0-beta.4");
+    expect(metadata.version).toBe("0.1.0-beta.5");
     expect(metadata.bin).toEqual({ janet: "dist/main.js" });
     expect(metadata.os).toEqual(["darwin"]);
-    expect(metadata.devDependencies["@stjbrown/agent-knowledge-skills"]).toBe("0.3.1");
+    expect(metadata.devDependencies["@stjbrown/agent-knowledge-skills"]).toBe("0.3.2");
   });
 
   it("pins runtime dependencies for reproducible global and npx installs", () => {

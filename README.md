@@ -183,7 +183,7 @@ Janet is built around the seven portable
 - `kb-visualize`
 
 Agent Knowledge owns their source, deterministic conformance checker, and graph generator. Janet
-pins `@stjbrown/agent-knowledge-skills@0.2.0` at build time and copies those skills into its own
+pins `@stjbrown/agent-knowledge-skills@0.3.2` at build time and copies those skills into its own
 package, so an installed Janet remains self-contained and works offline.
 
 You can also install the skills directly into another compatible agent without installing Janet:
