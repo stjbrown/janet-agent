@@ -32,6 +32,10 @@ import type {
   JanetAcpBootFactory,
   JanetAcpBootPort,
 } from "./types.js";
+import {
+  buzzEventContent,
+  publishBuzzInteraction,
+} from "./buzz.js";
 
 interface SessionOptions {
   cwd: string;
@@ -39,6 +43,7 @@ interface SessionOptions {
   modelId?: string;
   boot: JanetAcpBootPort;
   log: (message: string) => void;
+  publishInteraction: (prompt: string, content: string) => Promise<boolean>;
 }
 
 interface PendingQuestion extends JanetQuestion {}
@@ -101,15 +106,17 @@ class ActiveTurn {
   readonly #context: PromptContext;
   readonly #deltas = new AssistantDeltaTracker();
   readonly #result = new Deferred<StopReason>();
+  readonly #prompt: string;
   #notifications = Promise.resolve();
   #interactions = 0;
   #lastEndReason: Extract<AgentControllerEvent, { type: "agent_end" }>["reason"];
   #finished = false;
   #unsubscribe: (() => void) | undefined;
 
-  constructor(runtime: JanetAcpSession, context: PromptContext) {
+  constructor(runtime: JanetAcpSession, context: PromptContext, prompt: string) {
     this.#runtime = runtime;
     this.#context = context;
+    this.#prompt = prompt;
     this.#unsubscribe = runtime.boot.session.subscribe((event) => this.#onEvent(event));
   }
 
@@ -128,7 +135,10 @@ class ActiveTurn {
   }
 
   async answerPending(question: PendingQuestion, answerText: string): Promise<PromptResponse> {
-    const answer = resolveQuestionAnswer(question, answerText);
+    const answer = resolveQuestionAnswer(
+      question,
+      buzzEventContent(answerText) ?? answerText,
+    );
     if (answer === undefined) {
       this.#runtime.pendingQuestion = question;
       this.#notifyText(
@@ -195,13 +205,18 @@ class ActiveTurn {
     event: Extract<AgentControllerEvent, { type: "tool_approval_required" }>,
   ): void {
     this.#startInteraction(async () => {
+      const title = toolTitle(event.toolName, event.args);
+      const notice = this.#runtime.publishInteraction(
+        this.#prompt,
+        `Janet needs your approval to **${title}**. Open Janet's Activity panel and choose Allow once, Always allow, or Reject.`,
+      );
       let decision: Awaited<ReturnType<typeof requestToolPermission>> = "decline";
       try {
         decision = await requestToolPermission(this.#context.client, {
           sessionId: this.#runtime.id,
           toolCall: {
             toolCallId: event.toolCallId,
-            title: toolTitle(event.toolName, event.args),
+            title,
             kind: toolKind(event.toolName),
             status: "pending",
             ...(toolLocations(this.#runtime.cwd, event.args)
@@ -215,6 +230,7 @@ class ActiveTurn {
           `The client could not surface approval for ${event.toolName}; Janet declined it safely.`,
         );
       }
+      await notice;
       this.#runtime.boot.session.respondToToolApproval({
         toolCallId: event.toolCallId,
         decision:
@@ -231,13 +247,18 @@ class ActiveTurn {
     event: Extract<AgentControllerEvent, { type: "tool_suspended" }>,
   ): void {
     this.#startInteraction(async () => {
+      const title = toolTitle(event.toolName, event.args);
+      const notice = this.#runtime.publishInteraction(
+        this.#prompt,
+        `Janet needs your approval to **${title}**. Open Janet's Activity panel and choose Allow once, Always allow, or Reject.`,
+      );
       let decision: Awaited<ReturnType<typeof requestToolPermission>> = "decline";
       try {
         decision = await requestToolPermission(this.#context.client, {
           sessionId: this.#runtime.id,
           toolCall: {
             toolCallId: event.toolCallId,
-            title: toolTitle(event.toolName, event.args),
+            title,
             kind: "execute",
             status: "pending",
           },
@@ -246,6 +267,7 @@ class ActiveTurn {
       } catch {
         this.#notifyText("The client could not surface command approval; Janet declined it safely.");
       }
+      await notice;
       await this.#runtime.boot.session.respondToToolSuspension({
         toolCallId: event.toolCallId,
         resumeData: {
@@ -259,10 +281,14 @@ class ActiveTurn {
   #handleQuestion(question: PendingQuestion): void {
     if (!this.#context.formElicitation) {
       this.#runtime.pendingQuestion = question;
+      const text = formatQuestion(question.question, question.options, question.multi);
       this.#notifyText(
-        formatQuestion(question.question, question.options, question.multi),
+        text,
         `janet-question-${question.toolCallId}`,
       );
+      this.#startInteraction(async () => {
+        await this.#runtime.publishInteraction(this.#prompt, text);
+      });
       return;
     }
     this.#startInteraction(async () => {
@@ -367,6 +393,7 @@ export class JanetAcpSession {
   readonly modelId?: string;
   readonly boot: JanetAcpBootPort;
   readonly #log: (message: string) => void;
+  readonly #publishInteraction: SessionOptions["publishInteraction"];
   pendingQuestion: PendingQuestion | undefined;
   #activeTurn: ActiveTurn | undefined;
   #disposed = false;
@@ -378,6 +405,7 @@ export class JanetAcpSession {
     this.modelId = options.modelId;
     this.boot = options.boot;
     this.#log = options.log;
+    this.#publishInteraction = options.publishInteraction;
   }
 
   async prompt(
@@ -391,7 +419,7 @@ export class JanetAcpSession {
         "A prompt is already running for this Janet session.",
       );
     }
-    const turn = new ActiveTurn(this, context);
+    const turn = new ActiveTurn(this, context, prompt);
     this.#activeTurn = turn;
     const abort = () => turn.cancel();
     context.signal.addEventListener("abort", abort, { once: true });
@@ -419,6 +447,16 @@ export class JanetAcpSession {
     if (!this.#activeTurn) this.boot.session.abort();
   }
 
+  async publishInteraction(prompt: string, content: string): Promise<void> {
+    try {
+      await this.#publishInteraction(prompt, content);
+    } catch (error) {
+      this.#log(
+        `Janet ACP could not publish a Buzz interaction (session ${this.id}): ${safeErrorDetails(error)}`,
+      );
+    }
+  }
+
   async dispose(): Promise<void> {
     if (this.#disposed) return;
     this.#disposed = true;
@@ -434,12 +472,13 @@ export interface JanetAcpRegistryOptions {
   modelId?: string;
   boot?: JanetAcpBootFactory;
   log?: (message: string) => void;
+  publishInteraction?: (prompt: string, content: string) => Promise<boolean>;
 }
 
 export class JanetAcpRegistry {
   readonly #sessions = new Map<string, JanetAcpSession>();
-  readonly #options: Required<Pick<JanetAcpRegistryOptions, "boot" | "log">> &
-    Omit<JanetAcpRegistryOptions, "boot" | "log">;
+  readonly #options: Required<Pick<JanetAcpRegistryOptions, "boot" | "log" | "publishInteraction">> &
+    Omit<JanetAcpRegistryOptions, "boot" | "log" | "publishInteraction">;
   clientCapabilities: ClientCapabilities | undefined;
 
   constructor(options: JanetAcpRegistryOptions = {}) {
@@ -447,6 +486,7 @@ export class JanetAcpRegistry {
       ...options,
       boot: options.boot ?? bootJanet,
       log: options.log ?? ((message) => process.stderr.write(`${message}\n`)),
+      publishInteraction: options.publishInteraction ?? publishBuzzInteraction,
     };
   }
 
@@ -501,6 +541,7 @@ export class JanetAcpRegistry {
         ...(this.#options.modelId ? { modelId: this.#options.modelId } : {}),
         boot,
         log: this.#options.log,
+        publishInteraction: this.#options.publishInteraction,
       });
       this.#sessions.set(session.id, session);
       return session;

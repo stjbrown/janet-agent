@@ -109,6 +109,11 @@ and maps Janet's approval and question flows into ACP. Client-provided MCP serve
 workspace roots are not bridged yet; Janet reports that limitation on stderr and remains scoped to
 the session project. stdout is reserved exclusively for ACP protocol messages.
 
+Buzz currently exposes tool approvals in Janet's Activity panel rather than as channel controls.
+When Janet needs a question answered or an approval reviewed, she also posts a notice into the
+originating Buzz thread. Reply to a question in that thread; open Activity to approve or reject a
+tool request.
+
 Repository documentation is conversational in this first test pass. Start Janet in the repository
 and ask:
 

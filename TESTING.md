@@ -171,6 +171,8 @@ Buzz custom ACP harness command with `acp` as its argument. Open a Git project i
 - an out-of-bundle edit and a shell command each surface an approval instead of hanging
 - declining and approving each resume the same turn correctly
 - a Janet multiple-choice question is answerable through Buzz
+- questions appear in the originating channel thread and a channel reply resumes the suspended turn
+- approval notices appear in the channel while the actionable approval card appears in Activity
 - cancellation stops the active turn and a subsequent prompt succeeds
 - the project cwd and optional `--bundle` are honored
 - `.janet/` stays out of `git status` without changing tracked `.gitignore`

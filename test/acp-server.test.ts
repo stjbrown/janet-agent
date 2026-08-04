@@ -174,6 +174,7 @@ async function withClient<T>(input: {
   permission?: "allow-once" | "allow-always" | "reject-once";
   elicitationAnswer?: string;
   log?: (message: string) => void;
+  publishInteraction?: (prompt: string, content: string) => Promise<boolean>;
   run: (ctx: {
     agent: ClientContext;
     updates: SessionNotification[];
@@ -185,6 +186,7 @@ async function withClient<T>(input: {
   const { app, registry } = createJanetAcpAgent({
     boot: fixture.boot,
     log: input.log ?? (() => {}),
+    publishInteraction: input.publishInteraction ?? (async () => false),
   });
   cleanups.push(() => registry.disposeAll());
   const testClient = client({ name: "test-client" })
@@ -287,8 +289,10 @@ describe("Janet ACP agent", () => {
   });
 
   it("round-trips tool approval without hanging", async () => {
+    const publishInteraction = vi.fn(async () => true);
     await withClient({
       permission: "allow-always",
+      publishInteraction,
       run: async ({ agent, sessions }) => {
         const created = await agent.request(methods.agent.session.new, {
           cwd: "/tmp",
@@ -303,12 +307,18 @@ describe("Janet ACP agent", () => {
         expect(sessions[0]!.approvals).toEqual([
           expect.objectContaining({ decision: "always_allow_category" }),
         ]);
+        expect(publishInteraction).toHaveBeenCalledWith(
+          "Edit README",
+          expect.stringContaining("Open Janet's Activity panel"),
+        );
       },
     });
   });
 
   it("uses a second prompt as the answer when elicitation is unavailable", async () => {
+    const publishInteraction = vi.fn(async () => true);
     await withClient({
+      publishInteraction,
       run: async ({ agent, sessions, updates }) => {
         const created = await agent.request(methods.agent.session.new, {
           cwd: "/tmp",
@@ -327,9 +337,17 @@ describe("Janet ACP agent", () => {
               update.content.text.includes("Which approach?"),
           ),
         ).toBe(true);
+        expect(publishInteraction).toHaveBeenCalledWith(
+          "Start",
+          expect.stringContaining("Which approach?"),
+        );
+        const eventId = "b".repeat(64);
         const response = await agent.request(methods.agent.session.prompt, {
           sessionId: created.sessionId,
-          prompt: [{ type: "text", text: "2" }],
+          prompt: [{
+            type: "text",
+            text: `[Context]\nChannel: Test (#ce747caf-7143-4be1-b311-316834c12ad7)\nIMPORTANT: use \`--reply-to ${eventId}\`.\n\n[Buzz event: @mention]\nEvent ID: ${eventId}\nContent: @Janet 2\nTags: []`,
+          }],
         });
         expect(response.stopReason).toBe("end_turn");
         expect(sessions[0]!.answers).toEqual(["Fast"]);
