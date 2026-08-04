@@ -21,13 +21,13 @@ Add a `JANET.md` file at the root of the selected project to customize how Janet
 ```markdown
 # Role
 
-Act as a competitive-intelligence expert for this project.
+Act as the technical documentation steward for this project.
 
 # Priorities
 
-- Separate verified facts from inference.
-- Track competitor positioning, pricing, and product changes.
-- Prefer concise comparison tables when several companies are involved.
+- Ground architecture, workflows, and decisions in repository evidence.
+- Surface stale or conflicting documentation instead of silently repeating it.
+- Write concise explanations for contributors who are new to the project.
 ```
 
 Janet loads only the exact project-root `JANET.md` selected by the current directory or `-C`.
