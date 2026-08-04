@@ -19,6 +19,16 @@ export interface BuzzPublisherOptions {
   run?: BuzzCommandRunner;
 }
 
+const BUZZ_PROJECT_GUIDANCE = `[Janet Buzz project routing]
+You are running from the Buzz nest, not from a project repository. Treat the nest as a container for projects, never as the target project itself.
+
+- Never create or maintain a knowledge bundle at the Buzz workspace root (for example, \`knowledge/\`).
+- Buzz project checkouts live at \`REPOS/<project>/\`; a project's default bundle is \`REPOS/<project>/knowledge/\`.
+- Resolve the target project before any bundle write. If the user names an existing project, verify its directory and \`.git\` exist under \`REPOS/\`.
+- If the user asks to start a new Buzz project, or the target is ambiguous, propose a short project name and ask them to create or open that project in Buzz. Do not scaffold the bundle until they reply and the checkout exists under \`REPOS/\`.
+- \`buzz repos create\` only announces a NIP-34 repository. It does not create or attach a local Buzz project, so do not use it as a substitute for the user's project-creation step.
+- Once the project is verified, prefix every bundle read/write path with \`REPOS/<project>/\` and keep status messages explicit about the chosen project and bundle path.`;
+
 function lastMatch(pattern: RegExp, text: string): string | undefined {
   const matches = [...text.matchAll(pattern)];
   return matches.at(-1)?.[1];
@@ -43,6 +53,17 @@ export function buzzEventContent(prompt: string): string | undefined {
   const match = event.match(/\nContent:\s*([\s\S]*?)\nTags:/u);
   if (!match?.[1]) return;
   return match[1].trim().replace(/^@Janet\b[:,]?\s*/iu, "");
+}
+
+/** Add host-specific placement rules only inside an authenticated Buzz turn. */
+export function withBuzzProjectGuidance(
+  prompt: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  if (!env.BUZZ_PRIVATE_KEY || !env.BUZZ_RELAY_URL || !buzzReplyTarget(prompt)) {
+    return prompt;
+  }
+  return `${prompt}\n\n${BUZZ_PROJECT_GUIDANCE}`;
 }
 
 function buzzCommandEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {

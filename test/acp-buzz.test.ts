@@ -3,6 +3,7 @@ import {
   buzzEventContent,
   buzzReplyTarget,
   publishBuzzInteraction,
+  withBuzzProjectGuidance,
 } from "../src/acp/buzz.js";
 
 const eventId = "a".repeat(64);
@@ -60,5 +61,22 @@ describe("Buzz ACP interaction bridge", () => {
       }),
     ).resolves.toBe(false);
     expect(run).not.toHaveBeenCalled();
+  });
+
+  it("adds project placement rules only to authenticated Buzz turns", () => {
+    const guided = withBuzzProjectGuidance(prompt, {
+      BUZZ_PRIVATE_KEY: "private-key",
+      BUZZ_RELAY_URL: "ws://127.0.0.1:3000",
+    });
+    expect(guided).toContain("Never create or maintain a knowledge bundle at the Buzz workspace root");
+    expect(guided).toContain("REPOS/<project>/knowledge/");
+    expect(guided).toContain("propose a short project name and ask them to create or open");
+    expect(guided).toContain("`buzz repos create` only announces a NIP-34 repository");
+
+    expect(withBuzzProjectGuidance("ordinary ACP prompt", {
+      BUZZ_PRIVATE_KEY: "private-key",
+      BUZZ_RELAY_URL: "ws://127.0.0.1:3000",
+    })).toBe("ordinary ACP prompt");
+    expect(withBuzzProjectGuidance(prompt, {})).toBe(prompt);
   });
 });

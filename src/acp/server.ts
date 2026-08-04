@@ -7,6 +7,7 @@ import {
   type AgentApp,
 } from "@agentclientprotocol/sdk";
 import { packageVersion } from "../version.js";
+import { withBuzzProjectGuidance } from "./buzz.js";
 import { acpPromptText, JanetAcpRegistry, type JanetAcpRegistryOptions } from "./session.js";
 
 export interface JanetAcpAgent {
@@ -46,7 +47,8 @@ export function createJanetAcpAgent(
     })
     .onRequest(methods.agent.session.prompt, async ({ params, client, signal }) => {
       const session = registry.get(params.sessionId);
-      return session.prompt(acpPromptText(params.prompt), {
+      const prompt = withBuzzProjectGuidance(acpPromptText(params.prompt));
+      return session.prompt(prompt, {
         client,
         signal,
         formElicitation: registry.supportsFormElicitation(),

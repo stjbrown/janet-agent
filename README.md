@@ -114,6 +114,11 @@ When Janet needs a question answered or an approval reviewed, she also posts a n
 originating Buzz thread. Reply to a question in that thread; open Activity to approve or reject a
 tool request.
 
+Buzz's ACP cwd is its managed nest rather than an individual Git checkout. Janet therefore requires
+a target under `REPOS/<project>/` before writing a bundle. For a new project, she asks you to create
+or open it in Buzz first, verifies the checkout, and then defaults the bundle to
+`REPOS/<project>/knowledge/`; she does not place bundles at the nest root.
+
 Repository documentation is conversational in this first test pass. Start Janet in the repository
 and ask:
 

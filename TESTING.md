@@ -175,6 +175,8 @@ Buzz custom ACP harness command with `acp` as its argument. Open a Git project i
 - approval notices appear in the channel while the actionable approval card appears in Activity
 - cancellation stops the active turn and a subsequent prompt succeeds
 - the project cwd and optional `--bundle` are honored
+- a request for a new Buzz project pauses for project creation and never writes `<Buzz nest>/knowledge/`
+- after the project exists, Janet verifies `REPOS/<project>/.git` and uses `REPOS/<project>/knowledge/`
 - `.janet/` stays out of `git status` without changing tracked `.gitignore`
 - stopping the harness exits cleanly and leaves no Janet child process
 
