@@ -1,7 +1,9 @@
 # Janet
 
-Janet is a local knowledge agent for building and maintaining portable project wikis in plain
-Markdown using the Open Knowledge Format (OKF).
+Janet is a local knowledge agent built on [Mastra](https://mastra.ai/) for building and maintaining
+portable project wikis in plain Markdown using the Open Knowledge Format (OKF). Mastra provides
+the agent runtime, model routing, memory, and observability foundation; Janet adds focused OKF
+workflows, project-scoped safety, and a terminal experience for working with the knowledge.
 
 She operates on a selected project directory—the current directory by default, or the directory
 given with `-C`. Its knowledge bundle defaults to `knowledge/`, but `--bundle <path>` can select
@@ -117,6 +119,22 @@ Buzz's ACP cwd is its managed nest rather than an individual Git checkout. Janet
 a target under `REPOS/<project>/` before writing a bundle. For a new project, she asks you to create
 or open it in Buzz first, verifies the checkout, and then defaults the bundle to
 `REPOS/<project>/knowledge/`; she does not place bundles at the nest root.
+
+### Herdr
+
+Janet includes zero-configuration lifecycle reporting for
+[Herdr](https://github.com/herdrdev/herdr), the runtime for coding agents. Start Janet normally in a
+Herdr pane:
+
+```bash
+janet
+```
+
+When Herdr supplies a pane ID, Janet reports `idle`, `working`, and `blocked` as turns progress. It
+also reports the active Janet thread ID and project path, making the session visible to Herdr and
+available to resume with `janet --thread <id>`. No hook file or Janet-specific Herdr configuration
+is required. Reporting is best-effort and becomes a no-op outside Herdr, so it never affects a turn
+when Herdr is absent.
 
 Repository documentation is conversational in this first test pass. Start Janet in the repository
 and ask:
