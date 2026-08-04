@@ -8,7 +8,7 @@ given with `-C`. Its knowledge bundle defaults to `knowledge/`, but `--bundle <p
 another directory inside that project. Conversation history stays scoped to the project. The
 knowledge remains open, diffable, and usable without Janet.
 
-> Janet is prerelease software. The current release candidate is `0.1.0-beta.5`; published previews
+> Janet is prerelease software. The current release candidate is `0.1.0-beta.6`; published previews
 > use the `next` tag.
 > This beta is supported and tested on macOS only.
 
@@ -86,7 +86,7 @@ To try the local build in Buzz, first install the packed tarball and locate the 
 
 ```bash
 pnpm pack:janet
-npm install --global ./artifacts/janet-agent-0.1.0-beta.5.tgz
+npm install --global ./artifacts/janet-agent-0.1.0-beta.6.tgz
 command -v janet
 ```
 

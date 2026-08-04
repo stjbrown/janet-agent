@@ -1,7 +1,7 @@
 # Janet prerelease testing
 
 This is the release-candidate gate for `janet-agent`. Preview releases use npm's `next` tag.
-Beta.3 is supported and tested on macOS only.
+Beta.6 is supported and tested on macOS only.
 
 ## Automated release gate
 
