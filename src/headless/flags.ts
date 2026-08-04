@@ -19,7 +19,7 @@ const BOOLEAN_FLAGS = new Set([
   "version",
   "allow-exec",
 ]);
-const COMMANDS = new Set(["init", "ingest", "query", "lint", "viz", "help"]);
+const COMMANDS = new Set(["init", "ingest", "query", "lint", "viz", "acp", "help"]);
 
 function displayFlag(name: string): string {
   return name === "dir" ? "-C/--dir" : `--${name}`;
@@ -118,6 +118,23 @@ export function validateInvocation(parsed: ParsedArgs): string[] {
   }
   if (parsed.flags.has("allow-exec") && (!sub || sub === "query")) {
     errors.push("--allow-exec is only valid with a mutating one-shot command.");
+  }
+  if (sub === "acp") {
+    if (parsed.positionals.length) {
+      errors.push("`janet acp` does not accept positional arguments.");
+    }
+    if (parsed.flags.has("print")) {
+      errors.push("--print is not valid with `janet acp`.");
+    }
+    if (parsed.flags.has("allow-exec")) {
+      errors.push("--allow-exec is not valid with `janet acp`; ACP surfaces interactive approval.");
+    }
+    if (parsed.values["thread"] || parsed.values["resume"]) {
+      errors.push("--thread/--resume is not valid with `janet acp`; the ACP client owns sessions.");
+    }
+    if (parsed.values["dir"]) {
+      errors.push("-C/--dir is not valid with `janet acp`; the ACP client supplies the session cwd.");
+    }
   }
 
   switch (sub) {

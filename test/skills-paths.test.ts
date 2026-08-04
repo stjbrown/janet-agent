@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 import { ensureSkillLinks } from "../src/agent/skills-paths.js";
 
@@ -71,5 +72,23 @@ describe("ensureSkillLinks", () => {
     const mount = ensureSkillLinks(project);
 
     expect(mount.allowedPaths).toContain(local);
+  });
+
+  it("keeps Janet's local runtime out of Git without editing tracked files", () => {
+    const root = mkdtempSync(join(tmpdir(), "janet-skills-git-"));
+    roots.push(root);
+    const project = join(root, "project");
+    mkdirSync(project, { recursive: true });
+    execFileSync("git", ["init", "--quiet", project]);
+
+    ensureSkillLinks(project);
+
+    expect(
+      execFileSync(
+        "git",
+        ["-C", project, "check-ignore", "--quiet", "--no-index", ".janet/"],
+      ),
+    ).toBeDefined();
+    expect(existsSync(join(project, ".gitignore"))).toBe(false);
   });
 });

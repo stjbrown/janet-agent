@@ -19,6 +19,7 @@ export interface TraceTurnContext {
   operation: "chat" | "init" | "ingest" | "query" | "lint" | "viz";
   resourceId: string;
   threadId?: string;
+  transport?: "tui" | "headless" | "acp";
 }
 
 export interface JanetObservabilityRuntime {
@@ -162,6 +163,8 @@ export function createObservabilityRuntime(
         metadata: {
           "janet.version": packageVersion(),
           "janet.mode": context.interactive ? "interactive" : "headless",
+          "janet.transport":
+            context.transport ?? (context.interactive ? "tui" : "headless"),
           "janet.operation": context.operation,
           "janet.capture": config.capture,
           "janet.resource_id": context.resourceId,

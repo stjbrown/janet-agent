@@ -8,7 +8,7 @@ given with `-C`. Its knowledge bundle defaults to `knowledge/`, but `--bundle <p
 another directory inside that project. Conversation history stays scoped to the project. The
 knowledge remains open, diffable, and usable without Janet.
 
-> Janet is prerelease software. The current release candidate is `0.1.0-beta.4`; published previews
+> Janet is prerelease software. The current release candidate is `0.1.0-beta.5`; published previews
 > use the `next` tag.
 > This beta is supported and tested on macOS only.
 
@@ -73,6 +73,41 @@ janet query "how does auth work, and what supports it?"
 janet lint                       # deterministic conformance + semantic drift audit
 janet viz                        # write an interactive graph
 ```
+
+### ACP clients and Buzz
+
+`janet acp` runs Janet as an experimental
+[Agent Client Protocol](https://github.com/agentclientprotocol/agent-client-protocol) v1 agent over
+stdio. An ACP client supplies the project directory for each session, so `-C/--dir` is intentionally
+not accepted in this mode. Janet still honors `JANET.md`, keeps one conversation per ACP session,
+streams replies and tool activity, and asks the client to surface approvals for edits and commands.
+
+To try the local build in Buzz, first install the packed tarball and locate the binary:
+
+```bash
+pnpm pack:janet
+npm install --global ./artifacts/janet-agent-0.1.0-beta.5.tgz
+command -v janet
+```
+
+Then add a custom ACP harness in Buzz with these values:
+
+| Field | Value |
+| --- | --- |
+| ID | `janet` |
+| Label | `Janet` |
+| Command | the absolute path printed by `command -v janet` |
+| Arguments | `acp` |
+
+Use an absolute command because a macOS app may not inherit the same `PATH` as your shell. To use a
+non-default bundle or model, set the arguments to `acp --bundle docs/knowledge` or
+`acp --model provider/model`. Janet must already have a selected model or receive one through that
+flag or `JANET_MODEL`.
+
+The first ACP preview accepts text prompts, streams text and tool status, supports cancellation,
+and maps Janet's approval and question flows into ACP. Client-provided MCP servers and additional
+workspace roots are not bridged yet; Janet reports that limitation on stderr and remains scoped to
+the session project. stdout is reserved exclusively for ACP protocol messages.
 
 Repository documentation is conversational in this first test pass. Start Janet in the repository
 and ask:
@@ -140,6 +175,8 @@ Credentials, settings, threads, caches, and local traces use
 `~/.janet/`. Project-local state lives under
 `<project>/.janet/`. On first beta.3 launch, Janet moves the old global
 `~/.agent-knowledge/` directory only when `~/.janet/` does not already exist.
+Inside a Git repository, Janet adds its project-local runtime directory to Git's private
+`info/exclude` file when necessary; it does not edit the repository's tracked `.gitignore`.
 
 ## Memory
 

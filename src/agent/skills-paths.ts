@@ -15,6 +15,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { CONFIG_DIR_NAME, bundledSkillsDir, ensureDir } from "./paths.js";
 
 /** Portable skills exposed through Janet's workspace. */
@@ -40,6 +41,66 @@ export interface SkillMount {
 }
 
 /**
+ * Keep Janet's local runtime mount out of Git without changing the project's
+ * tracked `.gitignore`. This is deliberately best-effort: Janet must continue
+ * to work in non-Git directories and with unusual Git installations.
+ */
+export function ensureJanetGitExclude(projectPath: string): void {
+  let canonicalProject = projectPath;
+  try {
+    canonicalProject = fs.realpathSync(projectPath);
+  } catch {
+    // The caller will report an invalid project path when it resolves paths.
+  }
+  const ignored = spawnSync(
+    "git",
+    ["-C", canonicalProject, "check-ignore", "--quiet", "--no-index", "--", `${CONFIG_DIR_NAME}/`],
+    { stdio: "ignore" },
+  );
+  if (ignored.status === 0) return;
+
+  const rootResult = spawnSync(
+    "git",
+    ["-C", canonicalProject, "rev-parse", "--show-toplevel"],
+    { encoding: "utf8" },
+  );
+  const excludeResult = spawnSync(
+    "git",
+    ["-C", canonicalProject, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"],
+    { encoding: "utf8" },
+  );
+  if (rootResult.status !== 0 || excludeResult.status !== 0) return;
+
+  const gitRoot = rootResult.stdout.trim();
+  const excludePath = excludeResult.stdout.trim();
+  if (!gitRoot || !excludePath) return;
+
+  const relativeProject = path.relative(gitRoot, canonicalProject).split(path.sep).join("/");
+  if (relativeProject === ".." || relativeProject.startsWith("../")) return;
+  const pattern = `/${relativeProject ? `${relativeProject}/` : ""}${CONFIG_DIR_NAME}/`;
+
+  let existing = "";
+  try {
+    existing = fs.readFileSync(excludePath, "utf8");
+  } catch {
+    // Git may not have created info/exclude yet.
+  }
+  if (existing.split(/\r?\n/u).includes(pattern)) return;
+
+  try {
+    ensureDir(path.dirname(excludePath));
+    const separator = existing.length > 0 && !existing.endsWith("\n") ? "\n" : "";
+    fs.appendFileSync(
+      excludePath,
+      `${separator}# Janet local runtime (untracked)\n${pattern}\n`,
+      "utf8",
+    );
+  } catch {
+    // A read-only Git metadata directory should not prevent Janet from booting.
+  }
+}
+
+/**
  * Ensure Janet's project-local skill links exist and return the
  * workspace-relative skills root plus the absolute paths reads must be allowed
  * to resolve through.
@@ -47,6 +108,7 @@ export interface SkillMount {
 export function ensureSkillLinks(projectPath: string): SkillMount {
   const bundled = bundledSkillsDir();
 
+  ensureJanetGitExclude(projectPath);
   const linkRoot = path.join(projectPath, CONFIG_DIR_NAME, "skills");
   ensureDir(linkRoot);
   const allowedPaths = new Set<string>([linkRoot]);

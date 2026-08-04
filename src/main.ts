@@ -23,6 +23,7 @@ Usage:
   janet query "<question>"   Answer from the bundle, with citations
   janet lint [--fix]         Health-check the bundle (conformance + drift)
   janet viz [scope]          Render the bundle as a graph
+  janet acp                  Run Janet as an ACP v1 agent over stdio
 
 Options:
   -C, --dir <path>           Operate on <path> instead of the current directory
@@ -67,12 +68,23 @@ async function main(argv: string[]): Promise<number> {
 
   const dir = parsed.values["dir"];
   const bundleOverride = parsed.values["bundle"];
-  const paths = resolveProjectPaths({ dir, bundle: bundleOverride });
   const modelId = resolveModelId(parsed.values);
   const threadId = parsed.values["thread"] ?? parsed.values["resume"];
   const headless = parsed.flags.has("print") || !process.stdout.isTTY;
 
   const sub = parsed.subcommand;
+
+  // ACP is a long-running stdio transport. The client-provided session cwd is
+  // authoritative, so it is routed before resolving ordinary CLI project paths.
+  if (sub === "acp") {
+    const { runAcpServer } = await import("./acp/server.js");
+    return runAcpServer({
+      ...(bundleOverride ? { bundle: bundleOverride } : {}),
+      ...(modelId ? { modelId } : {}),
+    });
+  }
+
+  const paths = resolveProjectPaths({ dir, bundle: bundleOverride });
 
   // No subcommand → interactive TUI (chat).
   if (!sub) {

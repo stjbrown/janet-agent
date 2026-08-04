@@ -6,6 +6,7 @@ import {
 import {
   createWorkspace,
   editToolsEnabled,
+  managedCommandEnvironment,
 } from "../src/agent/workspace.js";
 
 function context(
@@ -36,6 +37,22 @@ describe("workspace tool exposure", () => {
   it("fails closed when policy context is absent", () => {
     const missing = { args: {}, workspace: {}, requestContext: {} };
     expect(editToolsEnabled(missing)).toBe(false);
+  });
+
+  it("forwards only Buzz's managed-agent identity to approved commands", () => {
+    expect(
+      managedCommandEnvironment({
+        BUZZ_PRIVATE_KEY: "agent-secret",
+        BUZZ_RELAY_URL: "ws://127.0.0.1:3000",
+        BUZZ_AUTH_TAG: "owner-proof",
+        OPENAI_API_KEY: "do-not-forward",
+        HOME: "/do-not-forward",
+      }),
+    ).toEqual({
+      BUZZ_PRIVATE_KEY: "agent-secret",
+      BUZZ_RELAY_URL: "ws://127.0.0.1:3000",
+      BUZZ_AUTH_TAG: "owner-proof",
+    });
   });
 
   it("keeps built-in shell tools disabled for every policy", async () => {
