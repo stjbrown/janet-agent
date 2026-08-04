@@ -72,6 +72,10 @@ import { formatTraceTree, traceStatus } from "./traces.js";
 import { activeRunSubmissionMessage } from "./submission.js";
 import { c, editorTheme, markdownTheme } from "./theme.js";
 import { workspaceWriteTarget } from "../agent/workspace-write-approval.js";
+import {
+  resolveQuestionAnswer,
+  type QuestionOption,
+} from "../agent/questions.js";
 
 /** OAuth providers janet can log in to. */
 const OAUTH_PROVIDERS = ["anthropic", "openai-codex"] as const;
@@ -88,11 +92,6 @@ interface PendingApproval {
   toolCallId: string;
   toolName: string;
   suspension: boolean;
-}
-
-interface QuestionOption {
-  label: string;
-  description?: string;
 }
 
 interface PendingQuestion {
@@ -118,26 +117,6 @@ function shortTokens(tokens: number): string {
   if (tokens < 1_000) return String(Math.max(0, Math.round(tokens)));
   const thousands = tokens / 1_000;
   return `${thousands >= 10 ? Math.round(thousands) : thousands.toFixed(1)}k`;
-}
-
-/** Map a typed answer to ask_user resume data (free-text or multi-select). */
-function resolveAnswer(q: PendingQuestion, text: string): string | string[] | undefined {
-  if (!q.options?.length) return text;
-  const opts = q.options;
-  const pick = (token: string): string | undefined => {
-    const t = token.trim();
-    if (!t) return undefined;
-    const n = Number(t);
-    if (Number.isInteger(n) && n >= 1 && n <= opts.length) return opts[n - 1]!.label;
-    const exact = opts.find((o) => o.label.toLowerCase() === t.toLowerCase());
-    if (exact) return exact.label;
-    return opts.find((o) => o.label.toLowerCase().startsWith(t.toLowerCase()))?.label;
-  };
-  if (q.multi) {
-    const picks = text.split(",").map(pick);
-    return picks.some((p) => p === undefined) ? undefined : (picks as string[]);
-  }
-  return pick(text);
 }
 
 export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<number> {
@@ -1519,7 +1498,7 @@ export async function runTui(opts: Omit<BootOptions, "interactive">): Promise<nu
 
     // A typed question (free-text or multi-select) consumes the next submit.
     if (pendingQuestion && !activeSelect) {
-      const resumeData = resolveAnswer(pendingQuestion, text);
+      const resumeData = resolveQuestionAnswer(pendingQuestion, text);
       if (resumeData === undefined) {
         addLine(c.dim("  Didn't match an option — reply with a number or an exact label."));
         return;

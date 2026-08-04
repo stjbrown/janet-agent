@@ -1,7 +1,7 @@
 # Janet prerelease testing
 
 This is the release-candidate gate for `janet-agent`. Preview releases use npm's `next` tag.
-Beta.3 is supported and tested on macOS only.
+Beta.6 is supported and tested on macOS only.
 
 ## Automated release gate
 
@@ -80,6 +80,10 @@ Do not use `sudo npm install`.
 - [ ] Confirm Esc, Ctrl+C, and `/cancel` stop an active run without exiting Janet.
 - [ ] Confirm observability is off by default with no trace database or OTLP request.
 - [ ] Test metadata-only local tracing and one Phoenix or custom OTLP export.
+- [ ] Add the packed Janet binary as a custom Buzz ACP harness and complete a streamed turn.
+- [ ] Trigger and answer both an edit approval and a Janet question through Buzz.
+- [ ] Cancel an active Buzz turn and confirm Janet remains usable for the next prompt.
+- [ ] Confirm `.janet/` does not appear in `git status` and tracked `.gitignore` is unchanged.
 - [ ] Record commit, package checksum, platform, Node version, provider, and result.
 
 Anthropic OAuth, an API-key provider, Vertex AI, and Bedrock are valuable additional coverage but
@@ -156,6 +160,25 @@ Start Janet in a second disposable project and confirm:
 - its bundle and thread are distinct
 - it cannot expose the first project's files through workspace tools
 - machine-wide OAuth remains available, as intended
+
+### ACP and Buzz
+
+Pack and globally install the candidate, then use the absolute path from `command -v janet` as a
+Buzz custom ACP harness command with `acp` as its argument. Open a Git project in Buzz and confirm:
+
+- initialization and a normal prompt complete without protocol text leaking into the conversation
+- assistant text and tool activity stream while the turn is running
+- an out-of-bundle edit and a shell command each surface an approval instead of hanging
+- declining and approving each resume the same turn correctly
+- a Janet multiple-choice question is answerable through Buzz
+- questions appear in the originating channel thread and a channel reply resumes the suspended turn
+- approval notices appear in the channel while the actionable approval card appears in Activity
+- cancellation stops the active turn and a subsequent prompt succeeds
+- the project cwd and optional `--bundle` are honored
+- a request for a new Buzz project pauses for project creation and never writes `<Buzz nest>/knowledge/`
+- after the project exists, Janet verifies `REPOS/<project>/.git` and uses `REPOS/<project>/knowledge/`
+- `.janet/` stays out of `git status` without changing tracked `.gitignore`
+- stopping the harness exits cleanly and leaves no Janet child process
 
 ### Observability
 

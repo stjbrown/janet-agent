@@ -15,6 +15,27 @@ export interface WorkspaceOptions {
   skills: SkillMount;
 }
 
+const MANAGED_COMMAND_ENV = [
+  "BUZZ_PRIVATE_KEY",
+  "BUZZ_RELAY_URL",
+  "BUZZ_AUTH_TAG",
+] as const;
+
+/**
+ * Credentials provided specifically for an approved managed-agent command.
+ * LocalSandbox otherwise exposes only PATH, which is the right default for
+ * Janet but prevents Buzz's own CLI from sending the agent's reply.
+ */
+export function managedCommandEnvironment(
+  source: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    MANAGED_COMMAND_ENV.flatMap((name) =>
+      source[name] === undefined ? [] : [[name, source[name]!]],
+    ),
+  );
+}
+
 type PolicyContext = Pick<ToolConfigContext, "requestContext">;
 
 function categoryPolicy(
@@ -54,7 +75,10 @@ export function createWorkspace(opts: WorkspaceOptions): Workspace {
       basePath: opts.projectPath,
       allowedPaths: opts.skills.allowedPaths,
     }),
-    sandbox: new LocalSandbox({ workingDirectory: opts.projectPath }),
+    sandbox: new LocalSandbox({
+      workingDirectory: opts.projectPath,
+      env: managedCommandEnvironment(),
+    }),
     skills: [opts.skills.relativeRoot],
     tools: {
       // Unknown future workspace tools inherit `false` and stay unavailable

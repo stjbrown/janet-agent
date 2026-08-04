@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@agentclientprotocol/sdk':
+        specifier: 1.3.0
+        version: 1.3.0(zod@4.4.3)
       '@ai-sdk/amazon-bedrock':
         specifier: 4.0.144
         version: 4.0.144(zod@4.4.3)
@@ -122,6 +125,11 @@ packages:
         optional: true
       express:
         optional: true
+
+  '@agentclientprotocol/sdk@1.3.0':
+    resolution: {integrity: sha512-i3h/efaeuMUFAO1HSfo97QZQnnvMd7wWBYtBsdL6UMZg3a78sk3Ffya5Xu7C7tYsXomXoDXJBAzQF2PcFKAhIQ==}
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
 
   '@ai-sdk/amazon-bedrock@4.0.144':
     resolution: {integrity: sha512-I4fYjeLYiN+7JbTqlE5Nmm79fy9t3E/VZf8qXiJ7ccCH6ytR/nDvlp3tjznUacIZgYZmnLOWqSKnPO8bBxBfqg==}
@@ -2932,6 +2940,10 @@ snapshots:
     optionalDependencies:
       '@grpc/grpc-js': 1.14.4
       express: 5.2.1
+
+  '@agentclientprotocol/sdk@1.3.0(zod@4.4.3)':
+    dependencies:
+      zod: 4.4.3
 
   '@ai-sdk/amazon-bedrock@4.0.144(zod@4.4.3)':
     dependencies:

@@ -82,4 +82,26 @@ describe("parseArgs", () => {
       "`janet viz` accepts at most one scope argument (quote multi-word scopes).",
     ]);
   });
+
+  it("accepts ACP model and bundle configuration", () => {
+    expect(
+      validateInvocation(
+        parseArgs(["acp", "--bundle", "docs/knowledge", "--model", "anthropic/claude-sonnet-5"]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("rejects client-owned and one-shot options in ACP mode", () => {
+    expect(
+      validateInvocation(
+        parseArgs(["-C", "/tmp", "acp", "extra", "--print", "--allow-exec", "--thread", "one"]),
+      ),
+    ).toEqual([
+      "`janet acp` does not accept positional arguments.",
+      "--print is not valid with `janet acp`.",
+      "--allow-exec is not valid with `janet acp`; ACP surfaces interactive approval.",
+      "--thread/--resume is not valid with `janet acp`; the ACP client owns sessions.",
+      "-C/--dir is not valid with `janet acp`; the ACP client supplies the session cwd.",
+    ]);
+  });
 });
