@@ -82,11 +82,10 @@ stdio. An ACP client supplies the project directory for each session, so `-C/--d
 not accepted in this mode. Janet still honors `JANET.md`, keeps one conversation per ACP session,
 streams replies and tool activity, and asks the client to surface approvals for edits and commands.
 
-To try the local build in Buzz, first install the packed tarball and locate the binary:
+To try the published preview in Buzz, install it and locate the binary:
 
 ```bash
-pnpm pack:janet
-npm install --global ./artifacts/janet-agent-0.1.0-beta.6.tgz
+npm install --global janet-agent@next
 command -v janet
 ```
 
